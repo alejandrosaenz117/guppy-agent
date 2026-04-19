@@ -17,14 +17,14 @@ describe('FindingSchema', () => {
     assert.ok(result.success);
   });
 
-  it('rejects line number of 0 (must be positive)', () => {
+  it('accepts line number of 0 (bounds removed for Anthropic schema compatibility)', () => {
     const result = FindingSchema.safeParse({ ...validFinding, line: 0 });
-    assert.ok(!result.success);
+    assert.ok(result.success);
   });
 
-  it('rejects negative line numbers', () => {
+  it('accepts negative line numbers (bounds removed for Anthropic schema compatibility)', () => {
     const result = FindingSchema.safeParse({ ...validFinding, line: -1 });
-    assert.ok(!result.success);
+    assert.ok(result.success);
   });
 
   it('rejects non-integer line numbers', () => {
@@ -95,7 +95,7 @@ describe('FindingsSchema', () => {
     const result = FindingsSchema.safeParse({
       findings: [
         { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
-        { file: 'b.ts', line: -1, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
+        { file: 'b.ts', line: 2, severity: 'invalid-severity', type: 'Info', message: 'msg2', fix: 'fix2' },
       ],
     });
     assert.ok(!result.success);

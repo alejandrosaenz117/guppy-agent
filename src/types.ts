@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Security finding from Guppy's analysis
 export const FindingSchema = z.object({
   file: z.string().max(500).describe('File path from diff'),
-  line: z.number().int().positive().describe('Line number (1-indexed)'),
+  line: z.number().int().describe('Line number (1-indexed)'),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).describe('Severity level'),
   type: z.string().max(200).describe('Vulnerability type (e.g., "SQL Injection", "XSS")'),
   message: z.string().max(2000).describe('Detailed explanation of the issue'),
