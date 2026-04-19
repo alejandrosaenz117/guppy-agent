@@ -178,6 +178,23 @@ describe('ActionInputsSchema', () => {
     assert.ok(result.success);
     assert.equal(result.data?.upload_sarif, true);
   });
+
+  it('ActionInputsSchema accepts structural_analysis boolean', () => {
+    const result = ActionInputsSchema.parse({
+      api_key: 'key',
+      github_token: 'token',
+      structural_analysis: true,
+    });
+    assert.equal(result.structural_analysis, true);
+  });
+
+  it('ActionInputsSchema defaults structural_analysis to false', () => {
+    const result = ActionInputsSchema.parse({
+      api_key: 'key',
+      github_token: 'token',
+    });
+    assert.equal(result.structural_analysis, false);
+  });
 });
 
 describe('SEVERITY_ORDER', () => {

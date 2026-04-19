@@ -26,6 +26,7 @@ export const ActionInputsSchema = z.object({
   fail_on_severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high'),
   github_token: z.string().describe('GitHub token for Octokit'),
   upload_sarif: z.boolean().default(false),
+  structural_analysis: z.boolean().default(false),
 });
 
 export type ActionInputs = z.infer<typeof ActionInputsSchema>;
