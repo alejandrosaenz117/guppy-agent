@@ -29,6 +29,10 @@ inputs:
     description: 'Upload findings as SARIF to GitHub Advanced Security (requires security-events: write)'
     required: false
     default: 'false'
+  structural_analysis:
+    description: 'Run chiasmus call graph analysis on diff files. Enriches Hunter context and pre-filters unreachable findings before Skeptic pass.'
+    required: false
+    default: 'false'
 
 outputs:
   findings_count:
