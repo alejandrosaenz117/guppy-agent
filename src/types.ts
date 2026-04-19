@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const FindingSchema = z.object({
   file: z.string().describe('File path from diff'),
   line: z.number().describe('Line number (1-indexed)'),
-  severity: z.enum(['critical', 'high', 'medium', 'low']).describe('Severity level'),
+  severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).describe('Severity level'),
   type: z.string().describe('Vulnerability type (e.g., "SQL Injection", "XSS")'),
   message: z.string().describe('Detailed explanation of the issue'),
   fix: z.string().describe('Recommended fix or mitigation'),
