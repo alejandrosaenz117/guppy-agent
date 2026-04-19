@@ -77317,18 +77317,35 @@ async function main() {
         // Post inline comments
         if (inputs.post_comments && findings.length > 0) {
             core.info('[Guppy] Posting inline comments to PR...');
+            // Fetch existing Guppy comments to update in place instead of duplicating
+            const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
+            const guppyComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('🚨'));
             for (const finding of findings) {
-                await octokit.rest.pulls.createReviewComment({
-                    owner: repo.owner,
-                    repo: repo.repo,
-                    pull_number: prNumber,
-                    body: enrichedTexts.get(finding),
-                    commit_id: context.payload.pull_request.head.sha,
-                    path: finding.file,
-                    line: finding.line,
-                }).catch((err) => {
-                    core.warning(`[Guppy] Failed to post comment on ${finding.file}:${finding.line}: ${err.message}`);
-                });
+                const body = enrichedTexts.get(finding);
+                const existing = guppyComments.find((c) => c.path === finding.file && c.line === finding.line);
+                if (existing) {
+                    await octokit.rest.pulls.updateReviewComment({
+                        owner: repo.owner,
+                        repo: repo.repo,
+                        comment_id: existing.id,
+                        body,
+                    }).catch((err) => {
+                        core.warning(`[Guppy] Failed to update comment on ${finding.file}:${finding.line}: ${err.message}`);
+                    });
+                }
+                else {
+                    await octokit.rest.pulls.createReviewComment({
+                        owner: repo.owner,
+                        repo: repo.repo,
+                        pull_number: prNumber,
+                        body,
+                        commit_id: context.payload.pull_request.head.sha,
+                        path: finding.file,
+                        line: finding.line,
+                    }).catch((err) => {
+                        core.warning(`[Guppy] Failed to post comment on ${finding.file}:${finding.line}: ${err.message}`);
+                    });
+                }
             }
             core.info(`[Guppy] ${findings.length} comment(s) posted.`);
         }
