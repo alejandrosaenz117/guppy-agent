@@ -8,8 +8,3 @@ export function vulnerableSqlQuery(userId: string) {
 export function vulnerableXss(userInput: string) {
   document.body.innerHTML = userInput; // XSS vulnerability
 }
-
-export function hardcodedSecret() {
-  const apiKey = 'sk-proj-abcdef123456'; // Hardcoded credential
-  return apiKey;
-}
