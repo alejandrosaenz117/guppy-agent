@@ -226,4 +226,128 @@ describe('Guppy.audit()', () => {
     const findings = await guppy.audit('const x = 1;');
     assert.deepEqual(findings, []);
   });
+
+  it('audit() with ChiasmusContext injects codebase_context into Hunter system prompt', async () => {
+    let capturedSystem = '';
+    const capturingModel: LanguageModel = {
+      specificationVersion: 'v2',
+      provider: 'test',
+      modelId: 'test-model',
+      doGenerate: async (options: any) => {
+        const sysMsg = options.prompt?.find?.((m: any) => m.role === 'system');
+        if (sysMsg?.content) {
+          capturedSystem = Array.isArray(sysMsg.content)
+            ? sysMsg.content.map((c: any) => c.text ?? '').join('')
+            : sysMsg.content;
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ findings: [] }) }],
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 10 },
+          rawCall: { rawPrompt: '', rawSettings: {} },
+        };
+      },
+      doStream: async () => { throw new Error('not used'); },
+    } as unknown as LanguageModel;
+
+    const ctx: import('./chiasmus.js').ChiasmusContext = {
+      mapSummary: 'exports: foo, bar',
+      graphSummary: 'foo -> bar -> db.query',
+    };
+
+    const guppy = new Guppy(capturingModel);
+    await guppy.audit('const x = 1;', ctx);
+    assert.ok(capturedSystem.includes('<codebase_context>'), 'system prompt should include <codebase_context>');
+    assert.ok(capturedSystem.includes('exports: foo, bar'), 'map summary should appear in system prompt');
+    assert.ok(capturedSystem.includes('foo -> bar -> db.query'), 'graph summary should appear in system prompt');
+  });
+
+  it('audit() with null ChiasmusContext behaves identically to current behavior', async () => {
+    const guppy = new Guppy(makeGeneratingModel([]));
+    const findings = await guppy.audit('const x = 1;', null);
+    assert.deepEqual(findings, []);
+  });
+
+  it('audit() chiasmus pre-filter drops unreachable findings before Skeptic sees them', async () => {
+    const reachable: Finding = {
+      file: 'src/auth.ts', line: 10, severity: 'high',
+      type: 'SQL Injection', message: 'msg', fix: 'fix',
+    };
+    const unreachable: Finding = {
+      file: 'src/dead.ts', line: 5, severity: 'high',
+      type: 'XSS', message: 'msg', fix: 'fix',
+    };
+
+    let skepticInput = '';
+    let callCount = 0;
+    const twoPassModel: LanguageModel = {
+      specificationVersion: 'v2',
+      provider: 'test',
+      modelId: 'test-model',
+      doGenerate: async (options: any) => {
+        callCount++;
+        const userMsg = options.prompt?.find?.((m: any) => m.role === 'user');
+        if (userMsg?.content) {
+          const text = userMsg.content.map((c: any) => c.text ?? '').join('');
+          if (text.includes('hunter_findings')) skepticInput = text;
+        }
+        // First call = Hunter (returns both), second call = Skeptic (returns reachable only)
+        const findings = callCount === 1 ? [reachable, unreachable] : [reachable];
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ findings }) }],
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 10 },
+          rawCall: { rawPrompt: '', rawSettings: {} },
+        };
+      },
+      doStream: async () => { throw new Error('not used'); },
+    } as unknown as LanguageModel;
+
+    const mockAnalyzer = {
+      verify: async (findings: Finding[]) => ({
+        results: findings.map(f => ({
+          finding: f,
+          verdict: f.file === 'src/dead.ts' ? 'unreachable' as const : 'reachable' as const,
+        })),
+        deadCode: [],
+      }),
+    };
+
+    const guppy = new Guppy(twoPassModel);
+    const findings = await guppy.audit('SELECT * FROM users', null, mockAnalyzer as any);
+
+    assert.ok(!skepticInput.includes('src/dead.ts'), 'unreachable finding must not reach Skeptic');
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].file, 'src/auth.ts');
+  });
+
+  it('audit() appends dead code findings to Skeptic results', async () => {
+    const deadFinding: Finding = {
+      file: 'src/utils.ts', line: 42, severity: 'none',
+      type: 'Dead Code', message: '`helper` is never called.', fix: 'Remove it.',
+    };
+    const mockAnalyzer = {
+      verify: async (_findings: Finding[]) => ({ results: [], deadCode: [deadFinding] }),
+    };
+
+    const guppy = new Guppy(makeGeneratingModel([]));
+    const findings = await guppy.audit('const x = 1;', null, mockAnalyzer as any);
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].type, 'Dead Code');
+  });
+
+  it('audit() still runs Skeptic when chiasmus verify throws', async () => {
+    const finding: Finding = {
+      file: 'src/auth.ts', line: 10, severity: 'high',
+      type: 'SQL Injection', message: 'msg', fix: 'fix',
+    };
+    const failingAnalyzer = {
+      verify: async () => { throw new Error('solver crashed'); },
+    };
+
+    const guppy = new Guppy(makeGeneratingModel([finding]));
+    // Should not throw — falls through to Skeptic
+    const findings = await guppy.audit('SELECT * FROM users', null, failingAnalyzer as any);
+    assert.ok(Array.isArray(findings));
+  });
 });
