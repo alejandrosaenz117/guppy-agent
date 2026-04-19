@@ -1,4 +1,6 @@
-# guppy-agent
+# GUPPI — General Unit Primary Peripheral Interface
+
+> _Deployed as `guppy-agent` for GitHub Actions._
 
 ![guppy-agent banner](guppy-agent-banner.png)
 
