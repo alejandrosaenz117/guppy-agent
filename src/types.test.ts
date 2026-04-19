@@ -32,14 +32,14 @@ describe('FindingSchema', () => {
     assert.ok(!result.success);
   });
 
-  it('rejects file paths containing newlines', () => {
+  it('accepts file paths with newlines (regex removed for Anthropic schema compatibility)', () => {
     const result = FindingSchema.safeParse({ ...validFinding, file: 'src/foo\nbar.ts' });
-    assert.ok(!result.success);
+    assert.ok(result.success);
   });
 
-  it('rejects file paths containing null bytes', () => {
+  it('accepts file paths with null bytes (regex removed for Anthropic schema compatibility)', () => {
     const result = FindingSchema.safeParse({ ...validFinding, file: 'src/foo\0bar.ts' });
-    assert.ok(!result.success);
+    assert.ok(result.success);
   });
 
   it('rejects file paths longer than 500 chars', () => {
