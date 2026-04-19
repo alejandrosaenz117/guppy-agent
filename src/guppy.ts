@@ -1,9 +1,10 @@
 import { generateObject, generateText } from 'ai';
+import type { LanguageModel } from 'ai';
 import { z } from 'zod';
 import { Finding, FindingsSchema } from './types';
 
 export class Guppy {
-  constructor(private model: any) {} // Model client from Vercel AI SDK
+  constructor(private model: LanguageModel) {}
 
   private readonly hunterPrompt = `You are Guppy, Admiral Ackbar's security analysis system for Bob's codebase.
 
@@ -38,7 +39,10 @@ Rate the filtered findings. Return only the vetted results in JSON.`;
       system: this.hunterPrompt,
       prompt: `<code_diff>${diff}</code_diff>`,
       schema: FindingsSchema,
-    }).catch(() => ({ object: [] }));
+    }).catch((error) => {
+      console.error('[Guppy] Hunter pass failed:', error instanceof Error ? error.message : String(error));
+      return { object: [] };
+    });
 
     if (!hunterFindings.object || hunterFindings.object.length === 0) {
       return [];
@@ -49,7 +53,10 @@ Rate the filtered findings. Return only the vetted results in JSON.`;
       model: this.model,
       system: this.skepticPrompt,
       prompt: `Hunter findings:\n${JSON.stringify(hunterFindings.object, null, 2)}\n\nFilter and return only real vulnerabilities as JSON array.`,
-    }).catch(() => ({ text: '[]' }));
+    }).catch((error) => {
+      console.error('[Guppy] Skeptic pass failed:', error instanceof Error ? error.message : String(error));
+      return { text: '[]' };
+    });
 
     try {
       const vetted = JSON.parse(skepticResponse.text);
