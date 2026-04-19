@@ -63656,6 +63656,7 @@ const ActionInputsSchema = z.object({
     post_comments: z.boolean().default(true),
     fail_on_severity: z["enum"](['critical', 'high', 'medium', 'low', 'none']).default('high'),
     github_token: z.string().describe('GitHub token for Octokit'),
+    upload_sarif: z.boolean().default(false),
 });
 // Severity levels for filtering
 const SEVERITY_ORDER = {
@@ -71712,6 +71713,62 @@ async function enrichFinding(finding) {
     return `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${message}\n\n**Recommended Fix:**\n${fix}${cweSection}`;
 }
 //# sourceMappingURL=enricher.js.map
+// EXTERNAL MODULE: external "zlib"
+var external_zlib_ = __nccwpck_require__(9796);
+;// CONCATENATED MODULE: ./dist/sarif.js
+
+const SARIF_SCHEMA = 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json';
+function severityToLevel(severity) {
+    if (severity === 'critical' || severity === 'high')
+        return 'error';
+    if (severity === 'medium')
+        return 'warning';
+    return 'note';
+}
+function ruleId(finding) {
+    return finding.cwe_id ? `CWE-${finding.cwe_id}` : finding.type;
+}
+function findingsToSarif(findings) {
+    const rulesMap = new Map();
+    for (const f of findings) {
+        const id = ruleId(f);
+        if (!rulesMap.has(id)) {
+            rulesMap.set(id, { id, shortDescription: { text: f.type } });
+        }
+    }
+    const results = findings.map((f) => ({
+        ruleId: ruleId(f),
+        level: severityToLevel(f.severity),
+        message: { text: f.message },
+        locations: [
+            {
+                physicalLocation: {
+                    artifactLocation: { uri: f.file, uriBaseId: 'SRCROOT' },
+                    region: { startLine: f.line },
+                },
+            },
+        ],
+    }));
+    return {
+        version: '2.1.0',
+        $schema: SARIF_SCHEMA,
+        runs: [
+            {
+                tool: {
+                    driver: {
+                        name: 'guppy-agent',
+                        rules: [...rulesMap.values()],
+                    },
+                },
+                results,
+            },
+        ],
+    };
+}
+function sarifToBase64(sarif) {
+    return gzipSync(Buffer.from(JSON.stringify(sarif))).toString('base64');
+}
+//# sourceMappingURL=sarif.js.map
 ;// CONCATENATED MODULE: ./node_modules/@ai-sdk/provider/dist/index.mjs
 // src/errors/api-call-error.ts
 var provider_dist_APICallError = class extends Error {
@@ -77156,6 +77213,8 @@ var google = createGoogleGenerativeAI();
 
 
 
+
+
 async function main() {
     try {
         core.info('[Guppy] Acknowledged. Initiating security scan. As you wish, Bob.');
@@ -77167,6 +77226,7 @@ async function main() {
         const post_comments = core.getBooleanInput('post_comments');
         const fail_on_severity = core.getInput('fail_on_severity') || 'high';
         const github_token = core.getInput('github_token', { required: true });
+        const upload_sarif = core.getBooleanInput('upload_sarif');
         // Validate inputs
         const inputs = ActionInputsSchema.parse({
             api_key,
@@ -77175,6 +77235,7 @@ async function main() {
             post_comments,
             fail_on_severity,
             github_token,
+            upload_sarif,
         });
         // Set API key in environment and select model client
         let modelClient;
@@ -77255,6 +77316,26 @@ async function main() {
                 });
             }
             core.info(`[Guppy] ${findings.length} comment(s) posted.`);
+        }
+        // Upload SARIF to GitHub Advanced Security
+        if (inputs.upload_sarif && findings.length > 0) {
+            core.info('[Guppy] Uploading SARIF report to GitHub Advanced Security...');
+            try {
+                const sarif = findingsToSarif(findings);
+                const encoded = (0,external_zlib_.gzipSync)(Buffer.from(JSON.stringify(sarif))).toString('base64');
+                await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {
+                    owner: repo.owner,
+                    repo: repo.repo,
+                    commit_sha: context.payload.pull_request.head.sha,
+                    ref: context.payload.pull_request.head.ref,
+                    sarif: encoded,
+                    tool_name: 'guppy-agent',
+                });
+                core.info('[Guppy] SARIF upload complete. Findings visible in Security tab.');
+            }
+            catch (err) {
+                core.warning(`[Guppy] SARIF upload failed: ${err.message}`);
+            }
         }
         // Check severity threshold
         const severityThreshold = SEVERITY_ORDER[inputs.fail_on_severity];

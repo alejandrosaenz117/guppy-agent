@@ -9,6 +9,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      security-events: write
     steps:
       - uses: alejandrosaenz117/guppy-agent@v1
         with:
@@ -18,3 +19,4 @@ jobs:
           model: 'claude-haiku-4-5-20251001'
           fail_on_severity: 'high'
           post_comments: true
+          upload_sarif: true

@@ -25,6 +25,10 @@ inputs:
   github_token:
     description: 'GitHub token for PR interactions'
     required: true
+  upload_sarif:
+    description: 'Upload findings as SARIF to GitHub Advanced Security (requires security-events: write)'
+    required: false
+    default: 'false'
 
 outputs:
   findings_count:

@@ -23,12 +23,13 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 | `model`            | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
 | `fail_on_severity` | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
 | `post_comments`    | `true`                       | Post inline PR comments for each finding        |
+| `upload_sarif`     | `false`                      | Upload findings to GitHub Advanced Security     |
 
 ## How it works
 
 Two LLM passes. The Hunter finds everything. The Skeptic tells the Hunter it's being paranoid. Only real vulnerabilities survive. If one is critical, Guppy says _"It's a trap!"_ and fails the build.
 
-Diffs are scrubbed for secrets before being sent to the LLM, because Guppy is not an idiot.
+Diffs are scrubbed for secrets using [@secretlint/secretlint-rule-preset-recommend](https://github.com/secretlint/secretlint) before transmission. Guppy does not trust the diff. Guppy does not trust anything.
 
 ## CWE + CAPEC enrichment
 

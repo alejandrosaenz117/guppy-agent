@@ -140,6 +140,16 @@ describe('ActionInputsSchema', () => {
         const result = ActionInputsSchema.safeParse(rest);
         assert.ok(!result.success);
     });
+    it('defaults upload_sarif to false when omitted', () => {
+        const result = ActionInputsSchema.safeParse(validInputs);
+        assert.ok(result.success);
+        assert.equal(result.data?.upload_sarif, false);
+    });
+    it('accepts upload_sarif true', () => {
+        const result = ActionInputsSchema.safeParse({ ...validInputs, upload_sarif: true });
+        assert.ok(result.success);
+        assert.equal(result.data?.upload_sarif, true);
+    });
 });
 describe('SEVERITY_ORDER', () => {
     it('orders critical above high', () => {

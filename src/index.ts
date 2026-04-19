@@ -3,7 +3,9 @@ import * as github from '@actions/github';
 import { Guppy } from './guppy.js';
 import { scrubber } from './scrubber.js';
 import { enrichFinding, getCweIndex } from './enricher.js';
+import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
+import { gzipSync } from 'zlib';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
@@ -20,6 +22,7 @@ async function main() {
     const post_comments = core.getBooleanInput('post_comments');
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const github_token = core.getInput('github_token', { required: true });
+    const upload_sarif = core.getBooleanInput('upload_sarif');
 
     // Validate inputs
     const inputs = ActionInputsSchema.parse({
@@ -29,6 +32,7 @@ async function main() {
       post_comments,
       fail_on_severity,
       github_token,
+      upload_sarif,
     });
 
     // Set API key in environment and select model client
@@ -126,6 +130,26 @@ async function main() {
       }
 
       core.info(`[Guppy] ${findings.length} comment(s) posted.`);
+    }
+
+    // Upload SARIF to GitHub Advanced Security
+    if (inputs.upload_sarif && findings.length > 0) {
+      core.info('[Guppy] Uploading SARIF report to GitHub Advanced Security...');
+      try {
+        const sarif = findingsToSarif(findings);
+        const encoded = gzipSync(Buffer.from(JSON.stringify(sarif))).toString('base64');
+        await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {
+          owner: repo.owner,
+          repo: repo.repo,
+          commit_sha: context.payload.pull_request.head.sha,
+          ref: context.payload.pull_request.head.ref,
+          sarif: encoded,
+          tool_name: 'guppy-agent',
+        });
+        core.info('[Guppy] SARIF upload complete. Findings visible in Security tab.');
+      } catch (err: any) {
+        core.warning(`[Guppy] SARIF upload failed: ${err.message}`);
+      }
     }
 
     // Check severity threshold
