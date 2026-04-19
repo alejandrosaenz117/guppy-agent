@@ -43,7 +43,7 @@ Every finding is enriched with data from the [MITRE CWE database](https://cwe.mi
 - **CAPEC attack patterns** — how an attacker would actually exploit it, with links
 - **Known CVEs** — real-world examples of the vulnerability in the wild
 
-The full CWE list is fetched before analysis and injected into the Hunter prompt, so the model picks from real IDs instead of hallucinating them.
+During analysis, Guppy has access to three on-demand CWE lookup tools: find_cwe_by_id, find_cwe_by_name, and find_cwe_by_capec. The Hunter uses these tools to enrich findings with official CWE data instead of hallucinating IDs.
 
 ## What Guppy detects
 
