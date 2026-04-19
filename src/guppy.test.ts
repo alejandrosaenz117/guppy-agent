@@ -4,22 +4,6 @@ import { Guppy } from './guppy.js';
 import type { LanguageModel } from 'ai';
 import type { Finding } from './types.js';
 
-// Minimal LanguageModel stub that returns controlled responses
-function makeModel(response: Finding[]): LanguageModel {
-  return {
-    specificationVersion: 'v1',
-    provider: 'test',
-    modelId: 'test-model',
-    defaultObjectGenerationMode: 'json',
-    doGenerate: async () => {
-      throw new Error('doGenerate not expected in tests');
-    },
-    doStream: async () => {
-      throw new Error('doStream not expected in tests');
-    },
-  } as unknown as LanguageModel;
-}
-
 // A model that returns a valid findings array via generateObject
 function makeGeneratingModel(findings: Finding[]): LanguageModel {
   return {

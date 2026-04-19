@@ -1,21 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Guppy } from './guppy.js';
-// Minimal LanguageModel stub that returns controlled responses
-function makeModel(response) {
-    return {
-        specificationVersion: 'v1',
-        provider: 'test',
-        modelId: 'test-model',
-        defaultObjectGenerationMode: 'json',
-        doGenerate: async () => {
-            throw new Error('doGenerate not expected in tests');
-        },
-        doStream: async () => {
-            throw new Error('doStream not expected in tests');
-        },
-    };
-}
 // A model that returns a valid findings array via generateObject
 function makeGeneratingModel(findings) {
     return {

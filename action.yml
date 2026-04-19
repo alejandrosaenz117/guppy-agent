@@ -29,10 +29,8 @@ inputs:
 outputs:
   findings_count:
     description: 'Total number of vulnerabilities found'
-    value: ${{ job.outputs.findings_count }}
   blocking_count:
     description: 'Number of blocking-level vulnerabilities'
-    value: ${{ job.outputs.blocking_count }}
 
 runs:
   using: 'node24'

@@ -13,6 +13,7 @@ async function main() {
 
     // Parse inputs
     const api_key = core.getInput('api_key', { required: true });
+    core.setSecret(api_key);
     const provider = core.getInput('provider') || 'anthropic';
     const model = core.getInput('model') || 'claude-3-5-sonnet-20241022';
     const post_comments = core.getBooleanInput('post_comments');
@@ -124,6 +125,9 @@ async function main() {
     const blockingFindings = findings.filter(
       (f) => SEVERITY_ORDER[f.severity as keyof typeof SEVERITY_ORDER] >= severityThreshold
     );
+
+    core.setOutput('findings_count', findings.length);
+    core.setOutput('blocking_count', blockingFindings.length);
 
     if (blockingFindings.length > 0 && severityThreshold > 0) {
       const hasCritical = blockingFindings.some((f) => f.severity === 'critical');
