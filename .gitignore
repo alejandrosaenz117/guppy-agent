@@ -17,3 +17,6 @@ dist/scrubber.js
 dist/types.js
 dist/vulnerable.js
 dist/*.test.js
+
+# Superpowers docs (specs and plans)
+docs/superpowers/
