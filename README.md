@@ -7,7 +7,7 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 ## Usage
 
 ```yaml
-- uses: your-username/guppy-agent@main
+- uses: alejandrosaenz117/guppy-agent@v1
   with:
     api_key: ${{ secrets.LLM_API_KEY }}
     github_token: ${{ secrets.GITHUB_TOKEN }}
