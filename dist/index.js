@@ -15580,6 +15580,7 @@ module.exports.DuplexWrapper = DuplexWrapper;
 const https = __nccwpck_require__(5687)
 const unzipper = __nccwpck_require__(1639)
 const fs = __nccwpck_require__(7147)
+const os = __nccwpck_require__(2037)
 const { XMLParser } = __nccwpck_require__(4577)
 const path = __nccwpck_require__(1017)
 const { enrichReferences } = __nccwpck_require__(3419)
@@ -15697,7 +15698,7 @@ function getCweZipUrlAndPath (version) {
   let url, zipPath
   if (!version || version === 'latest') {
     url = 'https://cwe.mitre.org/data/xml/cwec_latest.xml.zip'
-    zipPath = path.join(__dirname, 'output', 'cwec_latest.xml.zip')
+    zipPath = path.join(os.tmpdir(), 'cwec_latest.xml.zip')
   } else {
     // Validate version string (e.g., "4.16")
     // Only allow digits and dots, and must match the MITRE version format
@@ -15709,7 +15710,7 @@ function getCweZipUrlAndPath (version) {
       throw new Error('Invalid version: path traversal is not allowed.')
     }
     url = `https://cwe.mitre.org/data/xml/cwec_v${version}.xml.zip`
-    zipPath = path.join(__dirname, 'output', `cwec_v${version}.xml.zip`)
+    zipPath = path.join(os.tmpdir(), `cwec_v${version}.xml.zip`)
   }
   return { url, zipPath }
 }
