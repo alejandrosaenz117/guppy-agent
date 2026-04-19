@@ -109889,23 +109889,26 @@ class ChiasmusAnalyzer {
         if (!this.cachedGraph) {
             throw new Error('Graph not analyzed. Call analyze() with source files first.');
         }
-        // If no findings provided, return empty results and no dead code
         if (findings.length === 0) {
             return { results: [], deadCode: [] };
         }
-        // Convert each finding to a VerificationResult
-        const results = findings.map((finding) => {
-            // For now, mark all findings as 'unknown' since we don't have a specific
-            // reachability check for individual findings. In a real implementation,
-            // we'd run a reachability analysis targeting the finding's location.
-            return {
-                finding,
-                verdict: 'unknown',
-            };
-        });
-        // Convert dead code set to Finding objects (only when findings are provided)
+        // Detect entry points once for all reachability queries
+        const entryPoints = detectEntryPoints(this.cachedGraph);
+        const results = await Promise.all(findings.map(async (finding) => {
+            const symbol = this.resolveSymbolAtLocation(finding.file, finding.line);
+            if (!symbol) {
+                return { finding, verdict: 'unknown' };
+            }
+            // If the symbol itself is dead code, mark unreachable immediately
+            if (this.deadCodeSet.has(symbol)) {
+                return { finding, verdict: 'unreachable' };
+            }
+            // Check if any entry point can reach this symbol
+            const reachable = await this.isReachableFromAnyEntryPoint(symbol, entryPoints);
+            return { finding, verdict: reachable ? 'reachable' : 'unreachable' };
+        }));
         const deadCode = Array.from(this.deadCodeSet).map((symbol) => ({
-            file: symbol, // symbol is the dead code name, not a file path
+            file: symbol,
             line: 0,
             severity: 'none',
             type: 'Dead Code',
@@ -109913,6 +109916,37 @@ class ChiasmusAnalyzer {
             fix: 'Remove this unused code or add an entry point that calls it',
         }));
         return { results, deadCode };
+    }
+    resolveSymbolAtLocation(file, line) {
+        if (!this.cachedGraph)
+            return null;
+        const fileDetail = buildFileDetail(this.cachedGraph, file);
+        if (!fileDetail || !fileDetail.symbols?.length)
+            return null;
+        // Find the symbol whose definition is closest to (but not after) the finding line
+        const candidates = fileDetail.symbols
+            .filter(s => s.line <= line)
+            .sort((a, b) => b.line - a.line);
+        return candidates[0]?.name ?? null;
+    }
+    async isReachableFromAnyEntryPoint(symbol, entryPoints) {
+        if (!this.cachedGraph || entryPoints.length === 0)
+            return true;
+        for (const entry of entryPoints) {
+            try {
+                const result = await runAnalysisFromGraph(this.cachedGraph, {
+                    analysis: 'reachability',
+                    from: entry,
+                    to: symbol,
+                });
+                if (result.result?.reachable === true)
+                    return true;
+            }
+            catch {
+                // Individual check failed — don't penalize the finding
+            }
+        }
+        return false;
     }
     formatGraphSummary(summaryResult, deadCodeResult) {
         const lines = [];
