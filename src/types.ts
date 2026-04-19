@@ -12,7 +12,9 @@ export const FindingSchema = z.object({
 
 export type Finding = z.infer<typeof FindingSchema>;
 
-export const FindingsSchema = z.array(FindingSchema);
+export const FindingsSchema = z.object({
+  findings: z.array(FindingSchema),
+});
 
 // Action inputs
 export const ActionInputsSchema = z.object({

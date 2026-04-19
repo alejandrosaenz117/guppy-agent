@@ -76,26 +76,28 @@ describe('FindingSchema', () => {
 });
 
 describe('FindingsSchema', () => {
-  it('accepts an empty array', () => {
-    const result = FindingsSchema.safeParse([]);
+  it('accepts empty findings object', () => {
+    const result = FindingsSchema.safeParse({ findings: [] });
     assert.ok(result.success);
   });
 
-  it('accepts an array of valid findings', () => {
-    const findings = [
-      { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
-      { file: 'b.ts', line: 2, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
-    ];
-    const result = FindingsSchema.safeParse(findings);
+  it('accepts an object with valid findings array', () => {
+    const result = FindingsSchema.safeParse({
+      findings: [
+        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
+        { file: 'b.ts', line: 2, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
+      ],
+    });
     assert.ok(result.success);
   });
 
   it('rejects if any finding is invalid', () => {
-    const findings = [
-      { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
-      { file: 'b.ts', line: -1, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
-    ];
-    const result = FindingsSchema.safeParse(findings);
+    const result = FindingsSchema.safeParse({
+      findings: [
+        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
+        { file: 'b.ts', line: -1, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
+      ],
+    });
     assert.ok(!result.success);
   });
 });
