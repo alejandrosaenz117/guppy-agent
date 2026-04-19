@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { Guppy } from './guppy.js';
 import { scrubber } from './scrubber.js';
-import { enrichFinding, getCweIndex } from './enricher.js';
+import { enrichFinding } from './enricher.js';
 import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
 import { gzipSync } from 'zlib';
@@ -88,15 +88,10 @@ async function main() {
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
-    // Fetch CWE list for prompt grounding and enrichment
-    core.info('[Guppy] Fetching CWE database...');
-    const cweIndex = await getCweIndex();
-    core.info(`[Guppy] CWE database loaded (${cweIndex.split('\n').length} entries).`);
-
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff, cweIndex);
+    const findings = await guppy.audit(scrubbedDiff);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
 
     // Clean up API key from environment after use
