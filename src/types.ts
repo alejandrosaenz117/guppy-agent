@@ -8,6 +8,7 @@ export const FindingSchema = z.object({
   type: z.string().max(200).describe('Vulnerability type (e.g., "SQL Injection", "XSS")'),
   message: z.string().max(2000).describe('Detailed explanation of the issue'),
   fix: z.string().max(2000).describe('Recommended fix or mitigation'),
+  cwe_id: z.string().max(20).optional().describe('CWE ID (e.g., "79" for XSS, "89" for SQL Injection)'),
 });
 
 export type Finding = z.infer<typeof FindingSchema>;

@@ -3,8 +3,8 @@ import { Finding } from './types.js';
 export declare class Guppy {
     private model;
     constructor(model: LanguageModel);
-    private readonly hunterPrompt;
+    private buildHunterPrompt;
     private readonly skepticPrompt;
-    audit(diff: string): Promise<Finding[]>;
+    audit(diff: string, cweIndex: string): Promise<Finding[]>;
 }
 //# sourceMappingURL=guppy.d.ts.map

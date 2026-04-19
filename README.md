@@ -30,6 +30,25 @@ Two LLM passes. The Hunter finds everything. The Skeptic tells the Hunter it's b
 
 Diffs are scrubbed for secrets before being sent to the LLM, because Guppy is not an idiot.
 
+## CWE + CAPEC enrichment
+
+Every finding is enriched with data from the [MITRE CWE database](https://cwe.mitre.org) via [fetch-cwe-list](https://www.npmjs.com/package/fetch-cwe-list). Each inline PR comment includes:
+
+- **CWE ID + description** — the official weakness classification
+- **CAPEC attack patterns** — how an attacker would actually exploit it, with links
+- **Known CVEs** — real-world examples of the vulnerability in the wild
+
+The full CWE list (969 entries) is fetched before analysis and injected into the Hunter prompt, so the model picks from real IDs instead of hallucinating them.
+
+## What Guppy detects
+
+Beyond the classics (SQLi, XSS, command injection), Guppy's Hunter prompt covers:
+
+- **Supply chain** — typosquatted packages, unpinned dependencies, suspicious postinstall scripts
+- **AI & agentic security** — prompt injection, LLM output used without validation, excessive agent permissions, MCP trust boundary violations
+- **Auth & crypto** — weak algorithms (MD5/SHA1), hardcoded secrets, JWT misuse
+- **Data & privacy** — PII/PAN in logs or responses, unsafe deserialization
+
 ## License
 
 MIT

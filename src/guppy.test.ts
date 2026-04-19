@@ -51,25 +51,25 @@ const validFinding: Finding = {
 describe('Guppy.audit()', () => {
   it('returns empty array when diff is empty string', async () => {
     const guppy = new Guppy(makeGeneratingModel([]));
-    const findings = await guppy.audit('');
+    const findings = await guppy.audit('', "");
     assert.deepEqual(findings, []);
   });
 
   it('returns empty array when Hunter finds nothing', async () => {
     const guppy = new Guppy(makeGeneratingModel([]));
-    const findings = await guppy.audit('const x = 1;');
+    const findings = await guppy.audit('const x = 1;', "");
     assert.deepEqual(findings, []);
   });
 
   it('returns empty array when model API fails', async () => {
     const guppy = new Guppy(makeFailingModel());
-    const findings = await guppy.audit('const password = "hunter2";');
+    const findings = await guppy.audit('const password = "hunter2";', "");
     assert.deepEqual(findings, []);
   });
 
   it('returns findings array with correct shape when vulnerabilities found', async () => {
     const guppy = new Guppy(makeGeneratingModel([validFinding, validFinding]));
-    const findings = await guppy.audit('SELECT * FROM users WHERE id = ' + "'" + 'input' + "'");
+    const findings = await guppy.audit('SELECT * FROM users WHERE id = ' + "'" + 'input' + "'", "");
     assert.ok(Array.isArray(findings));
     // Each finding should have required fields
     for (const f of findings) {
@@ -106,7 +106,7 @@ describe('Guppy.audit()', () => {
     } as unknown as LanguageModel;
 
     const guppy = new Guppy(capturingModel);
-    await guppy.audit('const x = 1;');
+    await guppy.audit('const x = 1;', "");
     assert.ok(capturedPrompt.includes('<code_diff>'), 'prompt should wrap diff in <code_diff>');
     assert.ok(capturedPrompt.includes('</code_diff>'), 'prompt should close </code_diff>');
   });

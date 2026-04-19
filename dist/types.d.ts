@@ -6,6 +6,7 @@ export declare const FindingSchema: z.ZodObject<{
     type: z.ZodString;
     message: z.ZodString;
     fix: z.ZodString;
+    cwe_id: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     file?: string;
     line?: number;
@@ -13,6 +14,7 @@ export declare const FindingSchema: z.ZodObject<{
     type?: string;
     message?: string;
     fix?: string;
+    cwe_id?: string;
 }, {
     file?: string;
     line?: number;
@@ -20,6 +22,7 @@ export declare const FindingSchema: z.ZodObject<{
     type?: string;
     message?: string;
     fix?: string;
+    cwe_id?: string;
 }>;
 export type Finding = z.infer<typeof FindingSchema>;
 export declare const FindingsSchema: z.ZodObject<{
@@ -30,6 +33,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type: z.ZodString;
         message: z.ZodString;
         fix: z.ZodString;
+        cwe_id: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         file?: string;
         line?: number;
@@ -37,6 +41,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        cwe_id?: string;
     }, {
         file?: string;
         line?: number;
@@ -44,6 +49,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        cwe_id?: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     findings?: {
@@ -53,6 +59,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        cwe_id?: string;
     }[];
 }, {
     findings?: {
@@ -62,6 +69,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        cwe_id?: string;
     }[];
 }>;
 export declare const ActionInputsSchema: z.ZodObject<{
