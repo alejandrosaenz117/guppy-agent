@@ -71696,15 +71696,13 @@ async function enrichFinding(finding) {
             if (cwe) {
                 cweSection += `\n\n**CWE-${cwe.ID}: ${cwe.Name}**\n${cwe.Description}`;
                 if (cwe.CAPEC_IDs?.length) {
-                    const capecLinks = cwe.CAPEC_IDs.slice(0, 5).map((id) => `[CAPEC-${id}](https://capec.mitre.org/data/definitions/${id}.html)`).join(', ');
-                    const more = cwe.CAPEC_IDs.length > 5 ? ` (+${cwe.CAPEC_IDs.length - 5} more)` : '';
-                    cweSection += `\n\n**CAPEC Attack Patterns:** ${capecLinks}${more}`;
+                    const capecLinks = cwe.CAPEC_IDs.map((id) => `[CAPEC-${id}](https://capec.mitre.org/data/definitions/${id}.html)`).join(', ');
+                    cweSection += `\n\n**CAPEC Attack Patterns:** ${capecLinks}`;
                 }
                 cweSection += `\n\n**References:**`;
                 cweSection += `\n- [CWE-${cwe.ID} Details](https://cwe.mitre.org/data/definitions/${cwe.ID}.html)`;
                 if (cwe.Known_CVEs?.length) {
-                    const cves = cwe.Known_CVEs.slice(0, 3);
-                    const cveLinks = cves.map((c) => `[${c.id}](https://nvd.nist.gov/vuln/detail/${c.id})`).join(', ');
+                    const cveLinks = cwe.Known_CVEs.map((c) => `[${c.id}](https://nvd.nist.gov/vuln/detail/${c.id})`).join(', ');
                     cweSection += `\n- Known CVEs: ${cveLinks}`;
                 }
             }
