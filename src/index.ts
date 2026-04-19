@@ -5,10 +5,8 @@ import { scrubber } from './scrubber.js';
 import { enrichFinding } from './enricher.js';
 import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
-import { ChiasmusAnalyzer } from './chiasmus.js';
 import { gzipSync } from 'zlib';
-import { existsSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { existsSync } from 'fs';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
@@ -20,25 +18,6 @@ function extractTouchedFiles(diff: string): string[] {
     if (match) files.push(match[1]);
   }
   return [...new Set(files)];
-}
-
-function filterExistingFiles(files: string[]): string[] {
-  return files.filter(f => existsSync(f));
-}
-
-function collectSourceFiles(dir: string, exts: string[]): string[] {
-  const results: string[] = [];
-  const ignored = new Set(['node_modules', 'dist', '.git']);
-  for (const entry of readdirSync(dir)) {
-    if (ignored.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      results.push(...collectSourceFiles(full, exts));
-    } else if (exts.some(ext => full.endsWith(ext))) {
-      results.push(full);
-    }
-  }
-  return results;
 }
 
 async function main() {
@@ -121,33 +100,10 @@ async function main() {
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
-    let chiasmusCtx = null;
-    let chiasmusAnalyzer: ChiasmusAnalyzer | undefined;
-    if (inputs.structural_analysis) {
-      const allTouchedFiles = extractTouchedFiles(truncatedDiff);
-      const existingTouchedFiles = filterExistingFiles(allTouchedFiles);
-      // Build graph from full codebase so dead-code detection has complete call context
-      const allSourceFiles = collectSourceFiles('.', ['.ts', '.js', '.tsx', '.jsx']);
-      const graphFiles = allSourceFiles.length > 0 ? allSourceFiles : existingTouchedFiles;
-      if (graphFiles.length > 0) {
-        core.info(`[Guppy] Structural analysis enabled. Building graph from ${graphFiles.length} source file(s) (${existingTouchedFiles.length} touched)...`);
-        const analyzer = new ChiasmusAnalyzer();
-        try {
-          chiasmusCtx = await analyzer.analyze(graphFiles);
-          chiasmusAnalyzer = analyzer;
-          core.info('[Guppy] Chiasmus graph built and cached.');
-        } catch (err: any) {
-          core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
-        }
-      } else {
-        core.info(`[Guppy] Structural analysis enabled but no files found to analyze.`);
-      }
-    }
-
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff, chiasmusCtx, chiasmusAnalyzer);
+    const findings = await guppy.audit(scrubbedDiff);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
 
     // Clean up API key from environment after use
