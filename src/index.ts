@@ -6,13 +6,9 @@ import { enrichFinding } from './enricher.js';
 import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
 import { gzipSync } from 'zlib';
-import { existsSync } from 'fs';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
-import { createMCPClient } from '@ai-sdk/mcp';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { resolve } from 'path';
 
 function extractTouchedFiles(diff: string): string[] {
   const files: string[] = [];
@@ -24,8 +20,6 @@ function extractTouchedFiles(diff: string): string[] {
 }
 
 async function main() {
-  let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | undefined;
-
   try {
     core.info('[Guppy] Acknowledged. Initiating security scan. As you wish, Bob.');
 
@@ -38,7 +32,6 @@ async function main() {
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const github_token = core.getInput('github_token', { required: true });
     const upload_sarif = core.getBooleanInput('upload_sarif');
-    const structural_analysis = core.getBooleanInput('structural_analysis');
 
     // Validate inputs
     const inputs = ActionInputsSchema.parse({
@@ -49,7 +42,6 @@ async function main() {
       fail_on_severity,
       github_token,
       upload_sarif,
-      structural_analysis,
     });
 
     // Set API key in environment and select model client
@@ -105,41 +97,11 @@ async function main() {
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
-    // Setup chiasmus MCP client if structural analysis is enabled
-    let chiasmusTools: Record<string, any> | undefined;
-
-    if (inputs.structural_analysis) {
-      core.info('[Guppy] Structural analysis enabled. Starting chiasmus MCP server...');
-      try {
-        const serverPath = resolve('node_modules/chiasmus/dist/mcp-server.js');
-        if (!existsSync(serverPath)) {
-          core.warning('[Guppy] Chiasmus MCP server not found — skipping structural analysis.');
-        } else {
-          mcpClient = await createMCPClient({
-            transport: new StdioClientTransport({
-              command: 'node',
-              args: [serverPath],
-            }),
-          });
-          chiasmusTools = await mcpClient.tools();
-          const toolNames = Object.keys(chiasmusTools).join(', ');
-          core.info(`[Guppy] Chiasmus MCP ready. Tools available: ${toolNames}`);
-        }
-      } catch (err: any) {
-        core.warning(`[Guppy] Chiasmus MCP startup failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
-      }
-    }
-
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff, chiasmusTools);
+    const findings = await guppy.audit(scrubbedDiff);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
-
-    if (mcpClient) {
-      await mcpClient.close();
-      core.info('[Guppy] Chiasmus MCP server closed.');
-    }
 
     // Clean up API key from environment after use
     delete process.env.ANTHROPIC_API_KEY;
@@ -261,10 +223,6 @@ async function main() {
       core.setFailed(`[Guppy] Error: ${safeMessage}`);
     } else {
       core.setFailed(`[Guppy] Unknown error occurred`);
-    }
-  } finally {
-    if (mcpClient) {
-      await mcpClient.close().catch(() => {});
     }
   }
 }

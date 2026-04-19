@@ -24,4 +24,3 @@ jobs:
           fail_on_severity: 'high'
           post_comments: true
           upload_sarif: true
-          structural_analysis: true

@@ -226,20 +226,5 @@ describe('Guppy.audit()', () => {
     const findings = await guppy.audit('const x = 1;');
     assert.deepEqual(findings, []);
   });
-
-
-  it('audit() accepts optional chiasmusTools and merges with cweTools', async () => {
-    // chiasmusTools is just an extra tools object — verify audit() doesn't throw when passed
-    const fakeTool = {
-      chiasmus_graph: {
-        description: 'test',
-        parameters: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } }, analysis: { type: 'string' } } },
-        execute: async () => ({ result: 'ok' }),
-      },
-    };
-    const guppy = new Guppy(makeGeneratingModel([]));
-    // Should not throw — chiasmusTools merged in but model mock returns empty findings
-    const findings = await guppy.audit('diff content', fakeTool);
-    assert.ok(Array.isArray(findings));
-  });
 });
+

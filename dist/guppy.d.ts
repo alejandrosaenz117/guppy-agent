@@ -5,6 +5,6 @@ export declare class Guppy {
     constructor(model: LanguageModel);
     private readonly hunterPrompt;
     private readonly skepticPrompt;
-    audit(diff: string, chiasmusTools?: Record<string, any>): Promise<Finding[]>;
+    audit(diff: string): Promise<Finding[]>;
 }
 //# sourceMappingURL=guppy.d.ts.map
