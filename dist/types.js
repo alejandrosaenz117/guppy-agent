@@ -8,7 +8,9 @@ export const FindingSchema = z.object({
     message: z.string().max(2000).describe('Detailed explanation of the issue'),
     fix: z.string().max(2000).describe('Recommended fix or mitigation'),
 });
-export const FindingsSchema = z.array(FindingSchema);
+export const FindingsSchema = z.object({
+    findings: z.array(FindingSchema),
+});
 // Action inputs
 export const ActionInputsSchema = z.object({
     api_key: z.string().describe('LLM API key'),

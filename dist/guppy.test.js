@@ -9,7 +9,7 @@ function makeGeneratingModel(findings) {
         modelId: 'test-model',
         defaultObjectGenerationMode: 'json',
         doGenerate: async () => ({
-            text: JSON.stringify(findings),
+            text: JSON.stringify({ findings }),
             finishReason: 'stop',
             usage: { promptTokens: 10, completionTokens: 10 },
             rawCall: { rawPrompt: '', rawSettings: {} },
@@ -86,7 +86,7 @@ describe('Guppy.audit()', () => {
                     capturedPrompt = userMsg.content.map((c) => c.text ?? '').join('');
                 }
                 return {
-                    text: '[]',
+                    text: '{"findings":[]}',
                     finishReason: 'stop',
                     usage: { promptTokens: 10, completionTokens: 10 },
                     rawCall: { rawPrompt: '', rawSettings: {} },

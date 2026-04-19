@@ -22,28 +22,48 @@ export declare const FindingSchema: z.ZodObject<{
     fix?: string;
 }>;
 export type Finding = z.infer<typeof FindingSchema>;
-export declare const FindingsSchema: z.ZodArray<z.ZodObject<{
-    file: z.ZodString;
-    line: z.ZodNumber;
-    severity: z.ZodEnum<["critical", "high", "medium", "low", "none"]>;
-    type: z.ZodString;
-    message: z.ZodString;
-    fix: z.ZodString;
+export declare const FindingsSchema: z.ZodObject<{
+    findings: z.ZodArray<z.ZodObject<{
+        file: z.ZodString;
+        line: z.ZodNumber;
+        severity: z.ZodEnum<["critical", "high", "medium", "low", "none"]>;
+        type: z.ZodString;
+        message: z.ZodString;
+        fix: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        file?: string;
+        line?: number;
+        severity?: "critical" | "high" | "medium" | "low" | "none";
+        type?: string;
+        message?: string;
+        fix?: string;
+    }, {
+        file?: string;
+        line?: number;
+        severity?: "critical" | "high" | "medium" | "low" | "none";
+        type?: string;
+        message?: string;
+        fix?: string;
+    }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    file?: string;
-    line?: number;
-    severity?: "critical" | "high" | "medium" | "low" | "none";
-    type?: string;
-    message?: string;
-    fix?: string;
+    findings?: {
+        file?: string;
+        line?: number;
+        severity?: "critical" | "high" | "medium" | "low" | "none";
+        type?: string;
+        message?: string;
+        fix?: string;
+    }[];
 }, {
-    file?: string;
-    line?: number;
-    severity?: "critical" | "high" | "medium" | "low" | "none";
-    type?: string;
-    message?: string;
-    fix?: string;
-}>, "many">;
+    findings?: {
+        file?: string;
+        line?: number;
+        severity?: "critical" | "high" | "medium" | "low" | "none";
+        type?: string;
+        message?: string;
+        fix?: string;
+    }[];
+}>;
 export declare const ActionInputsSchema: z.ZodObject<{
     api_key: z.ZodString;
     provider: z.ZodDefault<z.ZodEnum<["anthropic", "openai", "google"]>>;
