@@ -12,6 +12,6 @@ jobs:
           api_key: ${{ secrets.LLM_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: 'anthropic'
-          model: 'claude-haiku-4-5-20251001'
+          model: 'claude-sonnet-4-6'
           fail_on_severity: 'high'
           post_comments: true
