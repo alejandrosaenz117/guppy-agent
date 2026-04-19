@@ -30,7 +30,7 @@ inputs:
     required: false
     default: 'false'
   structural_analysis:
-    description: 'Run chiasmus call graph analysis on diff files. Enriches Hunter context and pre-filters unreachable findings before Skeptic pass.'
+    description: 'Start chiasmus MCP server and expose call graph tools to the Hunter. Enables live reachability and dead-code queries during analysis.'
     required: false
     default: 'false'
 

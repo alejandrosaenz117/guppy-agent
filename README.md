@@ -28,7 +28,7 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 | `fail_on_severity`   | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
 | `post_comments`      | `true`                       | Post inline PR comments for each finding. Ignored when `upload_sarif` is `true`.  |
 | `upload_sarif`       | `false`                      | Upload findings to GitHub Advanced Security. Requires GHAS license.              |
-| `structural_analysis` | `false`                     | Run [chiasmus](https://github.com/yogthos/chiasmus) call graph analysis on diff files. Enriches Hunter context and pre-filters unreachable findings. |
+| `structural_analysis` | `false`                     | Start a [chiasmus](https://github.com/yogthos/chiasmus) MCP server and expose `chiasmus_graph` and `chiasmus_map` as live tools to the Hunter. Enables on-demand reachability and dead-code queries during analysis. |
 
 ## How it works
 
@@ -36,7 +36,7 @@ Guppy runs two LLM passes. The Hunter finds everything. The Skeptic tells the Hu
 
 Diffs are scrubbed for secrets using [@secretlint/secretlint-rule-preset-recommend](https://github.com/secretlint/secretlint) before transmission. Guppy does not trust the diff. Guppy does not trust anything.
 
-When `structural_analysis: true`, Guppy adds [chiasmus](https://github.com/yogthos/chiasmus) structural analysis: the Hunter gets enriched context from call graphs, and unreachable findings are pre-filtered before the Skeptic pass, reducing false positives and improving token efficiency.
+When `structural_analysis: true`, Guppy starts a [chiasmus](https://github.com/yogthos/chiasmus) MCP server and exposes its call graph tools directly to the Hunter. The Hunter can call `chiasmus_graph` on-demand to check reachability, detect dead code, or trace call paths — reducing false positives on unreachable code without a separate pre-filter pass.
 
 ## CWE + CAPEC enrichment
 
