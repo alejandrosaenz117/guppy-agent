@@ -2,6 +2,7 @@ node_modules/
 *.tsbuildinfo
 .env
 .env.local
+settings.local.json
 coverage/
 
 # tsc intermediate output — only dist/index.js (ncc bundle) is committed
