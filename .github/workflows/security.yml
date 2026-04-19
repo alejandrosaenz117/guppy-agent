@@ -1,0 +1,17 @@
+name: Security Scan
+
+on:
+  pull_request:
+
+jobs:
+  guppy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: alejandrosaenz117/guppy-agent@v1
+        with:
+          api_key: ${{ secrets.LLM_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          provider: 'anthropic'
+          model: 'claude-haiku-4-5-20251001'
+          fail_on_severity: 'high'
+          post_comments: true
