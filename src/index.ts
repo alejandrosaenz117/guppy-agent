@@ -5,10 +5,20 @@ import { scrubber } from './scrubber.js';
 import { enrichFinding } from './enricher.js';
 import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
+import { ChiasmusAnalyzer } from './chiasmus.js';
 import { gzipSync } from 'zlib';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
+
+function extractTouchedFiles(diff: string): string[] {
+  const files: string[] = [];
+  for (const line of diff.split('\n')) {
+    const match = line.match(/^diff --git a\/.+ b\/(.+)$/);
+    if (match) files.push(match[1]);
+  }
+  return [...new Set(files)];
+}
 
 async function main() {
   try {
@@ -23,6 +33,7 @@ async function main() {
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const github_token = core.getInput('github_token', { required: true });
     const upload_sarif = core.getBooleanInput('upload_sarif');
+    const structural_analysis = core.getBooleanInput('structural_analysis');
 
     // Validate inputs
     const inputs = ActionInputsSchema.parse({
@@ -33,6 +44,7 @@ async function main() {
       fail_on_severity,
       github_token,
       upload_sarif,
+      structural_analysis,
     });
 
     // Set API key in environment and select model client
@@ -88,10 +100,25 @@ async function main() {
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
+    let chiasmusCtx = null;
+    let chiasmusAnalyzer: ChiasmusAnalyzer | undefined;
+    if (inputs.structural_analysis) {
+      const touchedFiles = extractTouchedFiles(truncatedDiff);
+      core.info(`[Guppy] Structural analysis enabled. Analyzing ${touchedFiles.length} touched file(s)...`);
+      const analyzer = new ChiasmusAnalyzer();
+      try {
+        chiasmusCtx = await analyzer.analyze(touchedFiles);
+        chiasmusAnalyzer = analyzer;
+        core.info('[Guppy] Chiasmus graph built and cached.');
+      } catch (err: any) {
+        core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
+      }
+    }
+
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff);
+    const findings = await guppy.audit(scrubbedDiff, chiasmusCtx, chiasmusAnalyzer);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
 
     // Clean up API key from environment after use
