@@ -77314,8 +77314,9 @@ async function main() {
                 enrichedTexts.set(f, await enrichFinding(f));
             }));
         }
-        // Post inline comments
-        if (inputs.post_comments && findings.length > 0) {
+        // Post inline comments only if SARIF upload is not enabled — when SARIF is
+        // active, GitHub's native code scanning annotations already surface findings.
+        if (inputs.post_comments && !inputs.upload_sarif && findings.length > 0) {
             core.info('[Guppy] Posting inline comments to PR...');
             // Fetch existing Guppy comments to update in place instead of duplicating
             const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });

@@ -26,8 +26,8 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 | `provider`         | `anthropic`                  | `anthropic` · `openai` · `google`               |
 | `model`            | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
 | `fail_on_severity` | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
-| `post_comments`    | `true`                       | Post inline PR comments for each finding        |
-| `upload_sarif`     | `false`                      | Upload findings to GitHub Advanced Security     |
+| `post_comments`    | `true`                       | Post inline PR comments for each finding. Ignored when `upload_sarif` is `true` — GitHub's native code scanning annotations are used instead. |
+| `upload_sarif`     | `false`                      | Upload findings to GitHub Advanced Security. Requires a public repo or GHAS license. When enabled, disables inline comments to avoid duplication. |
 
 ## How it works
 
