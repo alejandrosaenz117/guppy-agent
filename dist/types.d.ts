@@ -80,6 +80,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     fail_on_severity: z.ZodDefault<z.ZodEnum<["critical", "high", "medium", "low", "none"]>>;
     github_token: z.ZodString;
     upload_sarif: z.ZodDefault<z.ZodBoolean>;
+    structural_analysis: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     api_key?: string;
     provider?: "anthropic" | "openai" | "google";
@@ -88,6 +89,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     fail_on_severity?: "critical" | "high" | "medium" | "low" | "none";
     github_token?: string;
     upload_sarif?: boolean;
+    structural_analysis?: boolean;
 }, {
     api_key?: string;
     provider?: "anthropic" | "openai" | "google";
@@ -96,6 +98,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     fail_on_severity?: "critical" | "high" | "medium" | "low" | "none";
     github_token?: string;
     upload_sarif?: boolean;
+    structural_analysis?: boolean;
 }>;
 export type ActionInputs = z.infer<typeof ActionInputsSchema>;
 export declare const SEVERITY_ORDER: {
