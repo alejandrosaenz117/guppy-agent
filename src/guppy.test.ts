@@ -195,6 +195,53 @@ describe('Guppy.audit()', () => {
     assert.ok(findings.length > 0);
   });
 
+  it('skips skeptic pass and returns hunter findings directly when skepticPass is false', async () => {
+    let callCount = 0;
+    const countingModel: LanguageModel = {
+      specificationVersion: 'v2',
+      provider: 'test',
+      modelId: 'test-model',
+      doGenerate: async () => {
+        callCount++;
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ findings: [validFinding] }) }],
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 10 },
+          rawCall: { rawPrompt: '', rawSettings: {} },
+        };
+      },
+      doStream: async () => { throw new Error('not used'); },
+    } as unknown as LanguageModel;
+
+    const guppy = new Guppy(countingModel, false);
+    const findings = await guppy.audit('const x = 1;');
+    assert.equal(callCount, 1, 'model should be called exactly once (no skeptic pass)');
+    assert.deepEqual(findings, [validFinding]);
+  });
+
+  it('runs skeptic pass (two model calls) when skepticPass is true', async () => {
+    let callCount = 0;
+    const countingModel: LanguageModel = {
+      specificationVersion: 'v2',
+      provider: 'test',
+      modelId: 'test-model',
+      doGenerate: async () => {
+        callCount++;
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ findings: [validFinding] }) }],
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 10 },
+          rawCall: { rawPrompt: '', rawSettings: {} },
+        };
+      },
+      doStream: async () => { throw new Error('not used'); },
+    } as unknown as LanguageModel;
+
+    const guppy = new Guppy(countingModel, true);
+    await guppy.audit('const x = 1;');
+    assert.equal(callCount, 2, 'model should be called twice (hunter + skeptic)');
+  });
+
   it('returns empty array when model fails during tool call loop', async () => {
     let callCount = 0;
     const failAfterToolCall: LanguageModel = {

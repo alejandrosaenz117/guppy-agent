@@ -26,6 +26,7 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 | `provider`           | `anthropic`                  | `anthropic` · `openai` · `google`               |
 | `model`              | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
 | `fail_on_severity`   | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
+| `skeptic_pass`       | `true`                       | Run a second pass to filter false positives. Set to `false` for single-pass mode. |
 | `post_comments`      | `true`                       | Post inline PR comments for each finding. Ignored when `upload_sarif` is `true`.  |
 | `upload_sarif`       | `false`                      | Upload findings to GitHub Advanced Security. Requires GHAS license.              |
 

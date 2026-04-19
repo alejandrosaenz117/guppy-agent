@@ -76,6 +76,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     api_key: z.ZodString;
     provider: z.ZodDefault<z.ZodEnum<["anthropic", "openai", "google"]>>;
     model: z.ZodDefault<z.ZodString>;
+    skeptic_pass: z.ZodDefault<z.ZodBoolean>;
     post_comments: z.ZodDefault<z.ZodBoolean>;
     fail_on_severity: z.ZodDefault<z.ZodEnum<["critical", "high", "medium", "low", "none"]>>;
     github_token: z.ZodString;
@@ -84,6 +85,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     api_key?: string;
     provider?: "anthropic" | "openai" | "google";
     model?: string;
+    skeptic_pass?: boolean;
     post_comments?: boolean;
     fail_on_severity?: "critical" | "high" | "medium" | "low" | "none";
     github_token?: string;
@@ -92,6 +94,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     api_key?: string;
     provider?: "anthropic" | "openai" | "google";
     model?: string;
+    skeptic_pass?: boolean;
     post_comments?: boolean;
     fail_on_severity?: "critical" | "high" | "medium" | "low" | "none";
     github_token?: string;

@@ -22,6 +22,7 @@ export const ActionInputsSchema = z.object({
   api_key: z.string().describe('LLM API key'),
   provider: z.enum(['anthropic', 'openai', 'google']).default('anthropic'),
   model: z.string().max(200).default('claude-3-5-sonnet-20241022'),
+  skeptic_pass: z.boolean().default(true),
   post_comments: z.boolean().default(true),
   fail_on_severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high'),
   github_token: z.string().describe('GitHub token for Octokit'),

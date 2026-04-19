@@ -5,7 +5,7 @@ import { Finding, FindingsSchema } from './types.js';
 import { cweTools } from './cwe-tools.js';
 
 export class Guppy {
-  constructor(private model: LanguageModel) {}
+  constructor(private model: LanguageModel, private skepticPass: boolean = true) {}
 
   private readonly hunterPrompt = `You are Guppy, Admiral Ackbar's security analysis system for Bob's codebase.
 
@@ -104,6 +104,11 @@ Preserve the cwe_id field on all kept findings. Return only the vetted results i
 
     if (!hunterFindings.length) {
       return [];
+    }
+
+    if (!this.skepticPass) {
+      core.info('[Guppy] Skeptic pass disabled. Returning Hunter findings directly.');
+      return hunterFindings;
     }
 
     // Pass 2: Skeptic — filter false positives

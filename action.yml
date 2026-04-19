@@ -14,6 +14,10 @@ inputs:
     description: 'Model name (e.g., claude-3-5-sonnet-20241022, gpt-4, gemini-2.0-flash)'
     required: false
     default: 'claude-3-5-sonnet-20241022'
+  skeptic_pass:
+    description: 'Run a second skeptic pass to filter false positives (disable for single-pass mode)'
+    required: false
+    default: 'true'
   post_comments:
     description: 'Post findings as inline PR comments'
     required: false

@@ -28,6 +28,7 @@ async function main() {
     core.setSecret(api_key);
     const provider = core.getInput('provider') || 'anthropic';
     const model = core.getInput('model') || 'claude-3-5-sonnet-20241022';
+    const skeptic_pass = core.getBooleanInput('skeptic_pass');
     const post_comments = core.getBooleanInput('post_comments');
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const github_token = core.getInput('github_token', { required: true });
@@ -38,6 +39,7 @@ async function main() {
       api_key,
       provider,
       model,
+      skeptic_pass,
       post_comments,
       fail_on_severity,
       github_token,
@@ -98,7 +100,7 @@ async function main() {
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
     // Run Guppy auditing
-    const guppy = new Guppy(modelClient);
+    const guppy = new Guppy(modelClient, inputs.skeptic_pass);
     core.info('[Guppy] Starting Hunter pass...');
     const findings = await guppy.audit(scrubbedDiff);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
