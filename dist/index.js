@@ -84779,7 +84779,7 @@ var TextStreamChatTransport = class extends (/* unused pure expression or super 
 
 // Security finding from Guppy's analysis
 const FindingSchema = objectType({
-    file: stringType().max(500).regex(/^[^\0\n\r]+$/).describe('File path from diff'),
+    file: stringType().max(500).describe('File path from diff'),
     line: numberType().int().positive().describe('Line number (1-indexed)'),
     severity: enumType(['critical', 'high', 'medium', 'low', 'none']).describe('Severity level'),
     type: stringType().max(200).describe('Vulnerability type (e.g., "SQL Injection", "XSS")'),
