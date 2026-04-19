@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import type { LanguageModel } from 'ai';
 import { z } from 'zod';
 import * as core from '@actions/core';
-import { Finding, FindingsSchema } from './types';
+import { Finding, FindingsSchema } from './types.js';
 
 export class Guppy {
   constructor(private model: LanguageModel) {}

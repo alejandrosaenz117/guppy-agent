@@ -1,5 +1,5 @@
 import type { LanguageModel } from 'ai';
-import { Finding } from './types';
+import { Finding } from './types.js';
 export declare class Guppy {
     private model;
     constructor(model: LanguageModel);

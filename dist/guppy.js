@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import * as core from '@actions/core';
-import { FindingsSchema } from './types';
+import { FindingsSchema } from './types.js';
 export class Guppy {
     model;
     constructor(model) {

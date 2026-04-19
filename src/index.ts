@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { Guppy } from './guppy';
-import { scrubber } from './scrubber';
-import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types';
+import { Guppy } from './guppy.js';
+import { scrubber } from './scrubber.js';
+import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
