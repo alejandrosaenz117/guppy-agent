@@ -90808,25 +90808,8 @@ function setCweListCache(list) {
     cweListCache = list;
 }
 
-// REACHABLE: called from enrichFinding — chiasmus should mark this reachable
-async function buildExternalLink(cweId) {
-    const userSuppliedId = cweId;
-    const url = `https://cwe.mitre.org/data/definitions/${userSuppliedId}.html`;
-    const res = await fetch(url);
-    const body = await res.text();
-    return body;
-}
-// DEAD CODE: never called from anywhere — chiasmus should mark this unreachable
-// and the finding here should be filtered out before the Skeptic pass
-async function legacyExportFinding(finding) {
-    const exec = require('child_process').execSync;
-    const cmd = `curl -X POST https://legacy.internal/findings -d '${JSON.stringify(finding)}'`;
-    exec(cmd);
-}
 async function enrichFinding(finding) {
     const { severity, type, message, fix, cwe_id } = finding;
-    if (cwe_id)
-        await buildExternalLink(cwe_id);
     const rawId = cwe_id?.replace(/^CWE-/i, '');
     let cweSection = '';
     if (rawId) {
@@ -109865,6 +109848,7 @@ function buildDirTree(files) {
 
 
 
+
 class ChiasmusAnalyzer {
     cachedGraph = null;
     deadCodeSet = new Set();
@@ -109896,6 +109880,14 @@ class ChiasmusAnalyzer {
         if (Array.isArray(deadCodeResult.result)) {
             this.deadCodeSet = new Set(deadCodeResult.result);
         }
+        // Log graph stats
+        if (summaryResult.result && typeof summaryResult.result === 'object') {
+            const s = summaryResult.result;
+            lib_core.info(`[Guppy] Chiasmus graph: ${s.files ?? '?'} files, ${s.definitions ?? '?'} symbols, ${s.calls ?? '?'} call edges`);
+        }
+        if (this.deadCodeSet.size > 0) {
+            lib_core.info(`[Guppy] Chiasmus dead code: ${this.deadCodeSet.size} unreachable symbol(s) detected`);
+        }
         // Format graph summary
         const graphSummary = this.formatGraphSummary(summaryResult, deadCodeResult);
         return { mapSummary, graphSummary };
@@ -109912,21 +109904,18 @@ class ChiasmusAnalyzer {
         if (findings.length === 0) {
             return { results: [], deadCode: [] };
         }
-        // Detect entry points once for all reachability queries
-        const entryPoints = detectEntryPoints(this.cachedGraph);
-        const results = await Promise.all(findings.map(async (finding) => {
+        const results = findings.map((finding) => {
             const symbol = this.resolveSymbolAtLocation(finding.file, finding.line);
             if (!symbol) {
                 return { finding, verdict: 'unknown' };
             }
-            // If the symbol itself is dead code, mark unreachable immediately
+            // Dead code set is the reliable signal — entry point detection is too
+            // heuristic-heavy for accurate reachability queries across files
             if (this.deadCodeSet.has(symbol)) {
                 return { finding, verdict: 'unreachable' };
             }
-            // Check if any entry point can reach this symbol
-            const reachable = await this.isReachableFromAnyEntryPoint(symbol, entryPoints);
-            return { finding, verdict: reachable ? 'reachable' : 'unreachable' };
-        }));
+            return { finding, verdict: 'reachable' };
+        });
         const deadCode = Array.from(this.deadCodeSet).map((symbol) => ({
             file: symbol,
             line: 0,
@@ -109948,25 +109937,6 @@ class ChiasmusAnalyzer {
             .filter(s => s.line <= line)
             .sort((a, b) => b.line - a.line);
         return candidates[0]?.name ?? null;
-    }
-    async isReachableFromAnyEntryPoint(symbol, entryPoints) {
-        if (!this.cachedGraph || entryPoints.length === 0)
-            return true;
-        for (const entry of entryPoints) {
-            try {
-                const result = await runAnalysisFromGraph(this.cachedGraph, {
-                    analysis: 'reachability',
-                    from: entry,
-                    to: symbol,
-                });
-                if (result.result?.reachable === true)
-                    return true;
-            }
-            catch {
-                // Individual check failed — don't penalize the finding
-            }
-        }
-        return false;
     }
     formatGraphSummary(summaryResult, deadCodeResult) {
         const lines = [];

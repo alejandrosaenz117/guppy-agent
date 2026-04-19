@@ -1,7 +1,8 @@
-import { extractGraph, buildOverview, runAnalysisFromGraph, renderMap, buildFileDetail, detectEntryPoints } from 'chiasmus/graph';
+import { extractGraph, buildOverview, runAnalysisFromGraph, renderMap, buildFileDetail } from 'chiasmus/graph';
 import type { CodeGraph, AnalysisResult } from 'chiasmus/graph';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import * as core from '@actions/core';
 import { Finding } from './types.js';
 
 export interface ChiasmusContext {
@@ -52,6 +53,15 @@ export class ChiasmusAnalyzer {
       this.deadCodeSet = new Set(deadCodeResult.result);
     }
 
+    // Log graph stats
+    if (summaryResult.result && typeof summaryResult.result === 'object') {
+      const s = summaryResult.result as Record<string, unknown>;
+      core.info(`[Guppy] Chiasmus graph: ${s.files ?? '?'} files, ${s.definitions ?? '?'} symbols, ${s.calls ?? '?'} call edges`);
+    }
+    if (this.deadCodeSet.size > 0) {
+      core.info(`[Guppy] Chiasmus dead code: ${this.deadCodeSet.size} unreachable symbol(s) detected`);
+    }
+
     // Format graph summary
     const graphSummary = this.formatGraphSummary(
       summaryResult,
@@ -80,26 +90,18 @@ export class ChiasmusAnalyzer {
       return { results: [], deadCode: [] };
     }
 
-    // Detect entry points once for all reachability queries
-    const entryPoints = detectEntryPoints(this.cachedGraph);
-
-    const results: VerificationResult[] = await Promise.all(
-      findings.map(async (finding) => {
-        const symbol = this.resolveSymbolAtLocation(finding.file, finding.line);
-        if (!symbol) {
-          return { finding, verdict: 'unknown' as const };
-        }
-
-        // If the symbol itself is dead code, mark unreachable immediately
-        if (this.deadCodeSet.has(symbol)) {
-          return { finding, verdict: 'unreachable' as const };
-        }
-
-        // Check if any entry point can reach this symbol
-        const reachable = await this.isReachableFromAnyEntryPoint(symbol, entryPoints);
-        return { finding, verdict: reachable ? 'reachable' as const : 'unreachable' as const };
-      })
-    );
+    const results: VerificationResult[] = findings.map((finding) => {
+      const symbol = this.resolveSymbolAtLocation(finding.file, finding.line);
+      if (!symbol) {
+        return { finding, verdict: 'unknown' as const };
+      }
+      // Dead code set is the reliable signal — entry point detection is too
+      // heuristic-heavy for accurate reachability queries across files
+      if (this.deadCodeSet.has(symbol)) {
+        return { finding, verdict: 'unreachable' as const };
+      }
+      return { finding, verdict: 'reachable' as const };
+    });
 
     const deadCode: Finding[] = Array.from(this.deadCodeSet).map((symbol) => ({
       file: symbol,
@@ -125,25 +127,6 @@ export class ChiasmusAnalyzer {
       .sort((a, b) => b.line - a.line);
 
     return candidates[0]?.name ?? null;
-  }
-
-  private async isReachableFromAnyEntryPoint(symbol: string, entryPoints: string[]): Promise<boolean> {
-    if (!this.cachedGraph || entryPoints.length === 0) return true;
-
-    for (const entry of entryPoints) {
-      try {
-        const result = await runAnalysisFromGraph(this.cachedGraph, {
-          analysis: 'reachability',
-          from: entry,
-          to: symbol,
-        });
-        if ((result.result as any)?.reachable === true) return true;
-      } catch {
-        // Individual check failed — don't penalize the finding
-      }
-    }
-
-    return false;
   }
 
   private formatGraphSummary(
