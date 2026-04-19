@@ -109950,6 +109950,8 @@ class ChiasmusAnalyzer {
     }
 }
 //# sourceMappingURL=chiasmus.js.map
+// EXTERNAL MODULE: external "fs"
+var external_fs_ = __nccwpck_require__(7147);
 ;// CONCATENATED MODULE: ./node_modules/@ai-sdk/anthropic/dist/index.mjs
 // src/anthropic-provider.ts
 
@@ -125005,6 +125007,7 @@ var google = createGoogleGenerativeAI();
 
 
 
+
 function extractTouchedFiles(diff) {
     const files = [];
     for (const line of diff.split('\n')) {
@@ -125013,6 +125016,9 @@ function extractTouchedFiles(diff) {
             files.push(match[1]);
     }
     return [...new Set(files)];
+}
+function filterExistingFiles(files) {
+    return files.filter(f => (0,external_fs_.existsSync)(f));
 }
 async function main() {
     try {
@@ -125085,16 +125091,22 @@ async function main() {
         let chiasmusCtx = null;
         let chiasmusAnalyzer;
         if (inputs.structural_analysis) {
-            const touchedFiles = extractTouchedFiles(truncatedDiff);
-            lib_core.info(`[Guppy] Structural analysis enabled. Analyzing ${touchedFiles.length} touched file(s)...`);
-            const analyzer = new ChiasmusAnalyzer();
-            try {
-                chiasmusCtx = await analyzer.analyze(touchedFiles);
-                chiasmusAnalyzer = analyzer;
-                lib_core.info('[Guppy] Chiasmus graph built and cached.');
+            const allTouchedFiles = extractTouchedFiles(truncatedDiff);
+            const existingFiles = filterExistingFiles(allTouchedFiles);
+            if (existingFiles.length > 0) {
+                lib_core.info(`[Guppy] Structural analysis enabled. Analyzing ${existingFiles.length} of ${allTouchedFiles.length} touched file(s)...`);
+                const analyzer = new ChiasmusAnalyzer();
+                try {
+                    chiasmusCtx = await analyzer.analyze(existingFiles);
+                    chiasmusAnalyzer = analyzer;
+                    lib_core.info('[Guppy] Chiasmus graph built and cached.');
+                }
+                catch (err) {
+                    lib_core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
+                }
             }
-            catch (err) {
-                lib_core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
+            else {
+                lib_core.info(`[Guppy] Structural analysis enabled but no files found to analyze (all ${allTouchedFiles.length} touched files do not exist in current checkout).`);
             }
         }
         // Run Guppy auditing

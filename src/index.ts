@@ -7,6 +7,7 @@ import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
 import { ChiasmusAnalyzer } from './chiasmus.js';
 import { gzipSync } from 'zlib';
+import { existsSync } from 'fs';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
@@ -18,6 +19,10 @@ function extractTouchedFiles(diff: string): string[] {
     if (match) files.push(match[1]);
   }
   return [...new Set(files)];
+}
+
+function filterExistingFiles(files: string[]): string[] {
+  return files.filter(f => existsSync(f));
 }
 
 async function main() {
@@ -103,15 +108,20 @@ async function main() {
     let chiasmusCtx = null;
     let chiasmusAnalyzer: ChiasmusAnalyzer | undefined;
     if (inputs.structural_analysis) {
-      const touchedFiles = extractTouchedFiles(truncatedDiff);
-      core.info(`[Guppy] Structural analysis enabled. Analyzing ${touchedFiles.length} touched file(s)...`);
-      const analyzer = new ChiasmusAnalyzer();
-      try {
-        chiasmusCtx = await analyzer.analyze(touchedFiles);
-        chiasmusAnalyzer = analyzer;
-        core.info('[Guppy] Chiasmus graph built and cached.');
-      } catch (err: any) {
-        core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
+      const allTouchedFiles = extractTouchedFiles(truncatedDiff);
+      const existingFiles = filterExistingFiles(allTouchedFiles);
+      if (existingFiles.length > 0) {
+        core.info(`[Guppy] Structural analysis enabled. Analyzing ${existingFiles.length} of ${allTouchedFiles.length} touched file(s)...`);
+        const analyzer = new ChiasmusAnalyzer();
+        try {
+          chiasmusCtx = await analyzer.analyze(existingFiles);
+          chiasmusAnalyzer = analyzer;
+          core.info('[Guppy] Chiasmus graph built and cached.');
+        } catch (err: any) {
+          core.warning(`[Guppy] Chiasmus analysis failed (non-fatal): ${err.message}. Falling back to standard pipeline.`);
+        }
+      } else {
+        core.info(`[Guppy] Structural analysis enabled but no files found to analyze (all ${allTouchedFiles.length} touched files do not exist in current checkout).`);
       }
     }
 
