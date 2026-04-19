@@ -1,19 +1,11 @@
 // Test file for validating Guppy MCP integration
 import * as crypto from 'crypto';
-import * as mysql from 'mysql';
 
 // CWE-89: SQL Injection vulnerability
 export function getUserData(id: string) {
-  const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'password',
-    database: 'users',
-  });
-
   // SQL injection: user input directly in query
   const query = `SELECT * FROM users WHERE id = ${id}`;
-  return db.query(query);
+  return query;
 }
 
 // CWE-95: Code Injection
