@@ -14,6 +14,21 @@ export async function getCweList(): Promise<CWEEntry[]> {
   return cweListCache!;
 }
 
+// For testing: allows injecting a mock CWE list
+export function _setCweListCache(list: any[] | null): void {
+  cweListCache = list as CWEEntry[] | null;
+}
+
+export async function getCweIndex(): Promise<string> {
+  try {
+    const list = await getCweList();
+    return list.map((c) => `CWE-${c.ID}: ${c.Name}`).join('\n');
+  } catch (err) {
+    core.debug('[Guppy] Failed to fetch CWE list for prompt: ' + err);
+    return '';
+  }
+}
+
 export async function enrichFinding(finding: Finding): Promise<string> {
   const { severity, type, message, fix, cwe_id } = finding;
   const rawId = cwe_id?.replace(/^CWE-/i, '');
