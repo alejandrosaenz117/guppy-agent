@@ -11,7 +11,7 @@ jobs:
       pull-requests: write
       security-events: write
     steps:
-      - uses: alejandrosaenz117/guppy-agent@v1
+      - uses: alejandrosaenz117/guppy-agent@v1.5.0
         with:
           api_key: ${{ secrets.LLM_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -20,3 +20,4 @@ jobs:
           fail_on_severity: 'high'
           post_comments: true
           upload_sarif: true
+          structural_analysis: true
