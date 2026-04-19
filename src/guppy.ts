@@ -36,6 +36,7 @@ Filter out false positives. Keep only findings that are demonstrably exploitable
 Rate the filtered findings. Return only the vetted results in JSON.`;
 
   async audit(diff: string): Promise<Finding[]> {
+    core.info(`[Guppy] Hunter scanning ${diff.length} bytes...`);
     // Pass 1: Hunter - Find every potential issue
     const hunterFindings = await generateObject({
       model: this.model,

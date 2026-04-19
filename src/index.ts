@@ -81,11 +81,13 @@ async function main() {
 
     // Scrub secrets before sending to LLM
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
-    core.debug('[Guppy] Diff scrubbed. Proceeding to analysis...');
+    core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
+    core.info('[Guppy] Starting Hunter pass...');
     const findings = await guppy.audit(scrubbedDiff);
+    core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
 
     // Clean up API key from environment after use
     delete process.env.ANTHROPIC_API_KEY;
