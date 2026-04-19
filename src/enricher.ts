@@ -8,20 +8,10 @@ import { Finding } from './types.js';
 
 let cweListCache: CWEEntry[] | null = null;
 
-async function getCweList(): Promise<CWEEntry[]> {
+export async function getCweList(): Promise<CWEEntry[]> {
   if (cweListCache) return cweListCache;
   cweListCache = await fetchCweList();
   return cweListCache!;
-}
-
-export async function getCweIndex(): Promise<string> {
-  try {
-    const list = await getCweList();
-    return list.map((c) => `CWE-${c.ID}: ${c.Name}`).join('\n');
-  } catch (err) {
-    core.debug('[Guppy] Failed to fetch CWE list for prompt: ' + err);
-    return '';
-  }
 }
 
 export async function enrichFinding(finding: Finding): Promise<string> {
