@@ -19,16 +19,16 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 
 ## Inputs
 
-| Input              | Default                      | Description                                     |
-| ------------------ | ---------------------------- | ----------------------------------------------- |
-| `api_key`          | required                     | Anthropic, OpenAI, or Google API key            |
-| `github_token`     | required                     | `${{ secrets.GITHUB_TOKEN }}` works             |
-| `provider`         | `anthropic`                  | `anthropic` · `openai` · `google`               |
-| `model`            | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
-| `fail_on_severity` | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
-| `post_comments`    | `true`                       | Post inline PR comments for each finding. Ignored when `upload_sarif` is `true` — GitHub's native code scanning annotations are used instead. |
-| `upload_sarif`     | `false`                      | Upload findings to GitHub Advanced Security. Requires a public repo or GHAS license. When enabled, disables inline comments to avoid duplication. |
-| `structural_analysis` | `false` | Run [chiasmus](https://github.com/yogthos/chiasmus) call graph + taint analysis on diff-touched files. Enriches the Hunter with structural context and pre-filters unreachable findings before the Skeptic pass. Also surfaces dead code as `none`-severity findings. Requires `chiasmus` in `dependencies`. |
+| Input                | Default                      | Description                                     |
+| -------------------- | ---------------------------- | ----------------------------------------------- |
+| `api_key`            | required                     | Anthropic, OpenAI, or Google API key            |
+| `github_token`       | required                     | `${{ secrets.GITHUB_TOKEN }}` works             |
+| `provider`           | `anthropic`                  | `anthropic` · `openai` · `google`               |
+| `model`              | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
+| `fail_on_severity`   | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
+| `post_comments`      | `true`                       | Post inline PR comments for each finding. Ignored when `upload_sarif` is `true`.  |
+| `upload_sarif`       | `false`                      | Upload findings to GitHub Advanced Security. Requires GHAS license.              |
+| `structural_analysis` | `false`                     | Run [chiasmus](https://github.com/yogthos/chiasmus) call graph analysis on diff files. Enriches Hunter context and pre-filters unreachable findings. |
 
 ## How it works
 
@@ -36,17 +36,7 @@ Guppy runs two LLM passes. The Hunter finds everything. The Skeptic tells the Hu
 
 Diffs are scrubbed for secrets using [@secretlint/secretlint-rule-preset-recommend](https://github.com/secretlint/secretlint) before transmission. Guppy does not trust the diff. Guppy does not trust anything.
 
-## Structural Analysis
-
-When `structural_analysis: true`, Guppy adds a [chiasmus](https://github.com/yogthos/chiasmus) layer around both LLM passes:
-
-**Before Hunter:** chiasmus parses the call graph and taint paths for all files touched by the PR diff. The Hunter receives a `<codebase_context>` block — a compact map of exports and reachable call chains — so it reasons about actual data flows, not just isolated diff lines.
-
-**Between Hunter and Skeptic:** chiasmus's Z3/Prolog solver checks each Hunter finding for reachability. Findings on provably unreachable code paths are dropped before the Skeptic ever sees them — making the Skeptic pass faster and cheaper. Dead code in the diff is surfaced as `none`-severity findings.
-
-**Skeptic still runs:** chiasmus handles structural reachability; the Skeptic handles contextual judgment (framework mitigations, library guarantees, runtime behavior). Both are necessary for precision.
-
-If chiasmus fails for any reason, Guppy falls back to the standard two-pass pipeline automatically.
+When `structural_analysis: true`, Guppy adds [chiasmus](https://github.com/yogthos/chiasmus) structural analysis: the Hunter gets enriched context from call graphs, and unreachable findings are pre-filtered before the Skeptic pass, reducing false positives and improving token efficiency.
 
 ## CWE + CAPEC enrichment
 
