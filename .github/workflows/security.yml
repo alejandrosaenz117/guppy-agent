@@ -11,6 +11,10 @@ jobs:
       pull-requests: write
       security-events: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: alejandrosaenz117/guppy-agent@v1
         with:
           api_key: ${{ secrets.LLM_API_KEY }}
