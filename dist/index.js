@@ -77220,7 +77220,7 @@ async function main() {
         // Scrub secrets before sending to LLM
         const scrubbedDiff = await scrubber.scrub(truncatedDiff);
         core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
-        // Fetch CWE list for prompt grounding and post-analysis enrichment
+        // Fetch CWE list for prompt grounding and enrichment
         core.info('[Guppy] Fetching CWE database...');
         const cweIndex = await getCweIndex();
         core.info(`[Guppy] CWE database loaded (${cweIndex.split('\n').length} entries).`);
@@ -77242,12 +77242,11 @@ async function main() {
         if (inputs.post_comments && findings.length > 0) {
             core.info('[Guppy] Posting inline comments to PR...');
             for (const finding of findings) {
-                const body = await enrichFinding(finding);
                 await octokit.rest.pulls.createReviewComment({
                     owner: repo.owner,
                     repo: repo.repo,
                     pull_number: prNumber,
-                    body,
+                    body: await enrichFinding(finding),
                     commit_id: context.payload.pull_request.head.sha,
                     path: finding.file,
                     line: finding.line,

@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { Guppy } from './guppy.js';
 import { scrubber } from './scrubber.js';
+import { enrichFinding, getCweIndex } from './enricher.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
@@ -83,10 +84,15 @@ async function main() {
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
+    // Fetch CWE list for prompt grounding and enrichment
+    core.info('[Guppy] Fetching CWE database...');
+    const cweIndex = await getCweIndex();
+    core.info(`[Guppy] CWE database loaded (${cweIndex.split('\n').length} entries).`);
+
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff);
+    const findings = await guppy.audit(scrubbedDiff, cweIndex);
     core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
 
     // Clean up API key from environment after use
@@ -110,7 +116,7 @@ async function main() {
           owner: repo.owner,
           repo: repo.repo,
           pull_number: prNumber,
-          body: `🚨 **[${finding.severity.toUpperCase()}] ${finding.type}**\n\n${finding.message}\n\n**Recommended Fix:**\n${finding.fix}`,
+          body: await enrichFinding(finding),
           commit_id: context.payload.pull_request.head.sha,
           path: finding.file,
           line: finding.line,
