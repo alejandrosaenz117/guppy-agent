@@ -1,4 +1,4 @@
-import { generateText, Output } from 'ai';
+import { generateText, Output, stepCountIs } from 'ai';
 import type { LanguageModel } from 'ai';
 import * as core from '@actions/core';
 import { Finding, FindingsSchema } from './types.js';
@@ -89,6 +89,7 @@ Preserve the cwe_id field on all kept findings. Return only the vetted results i
         prompt: `<code_diff>${diff}</code_diff>`,
         tools: cweTools,
         output: Output.object({ schema: FindingsSchema }),
+        stopWhen: stepCountIs(10),
       });
       core.debug(`[Guppy] Hunter result text: ${hunterResult.text.substring(0, 200)}`);
 
