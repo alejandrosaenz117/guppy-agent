@@ -111,6 +111,15 @@ async function main() {
 
     core.warning(`[Guppy] Calculation: ${findings.length} potential vulnerabilities identified.`);
 
+    // Enrich all findings once — reused for both PR comments and SARIF help text
+    const enrichedTexts = new Map<Finding, string>();
+    if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
+      core.info('[Guppy] Enriching findings with CWE/CAPEC data...');
+      await Promise.all(findings.map(async (f) => {
+        enrichedTexts.set(f, await enrichFinding(f));
+      }));
+    }
+
     // Post inline comments
     if (inputs.post_comments && findings.length > 0) {
       core.info('[Guppy] Posting inline comments to PR...');
@@ -120,7 +129,7 @@ async function main() {
           owner: repo.owner,
           repo: repo.repo,
           pull_number: prNumber,
-          body: await enrichFinding(finding),
+          body: enrichedTexts.get(finding)!,
           commit_id: context.payload.pull_request.head.sha,
           path: finding.file,
           line: finding.line,
@@ -136,7 +145,7 @@ async function main() {
     if (inputs.upload_sarif && findings.length > 0) {
       core.info('[Guppy] Uploading SARIF report to GitHub Advanced Security...');
       try {
-        const sarif = findingsToSarif(findings);
+        const sarif = findingsToSarif(findings, enrichedTexts);
         const encoded = gzipSync(Buffer.from(JSON.stringify(sarif))).toString('base64');
         const prRef = `refs/pull/${prNumber}/head`;
         await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {

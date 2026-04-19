@@ -13,12 +13,17 @@ function ruleId(finding: Finding): string {
   return finding.cwe_id ? `CWE-${finding.cwe_id}` : finding.type;
 }
 
-export function findingsToSarif(findings: Finding[]): any {
-  const rulesMap = new Map<string, { id: string; shortDescription: { text: string } }>();
+export function findingsToSarif(findings: Finding[], enrichedTexts?: Map<Finding, string>): any {
+  const rulesMap = new Map<string, { id: string; shortDescription: { text: string }; help?: { text: string; markdown: string } }>();
   for (const f of findings) {
     const id = ruleId(f);
     if (!rulesMap.has(id)) {
-      rulesMap.set(id, { id, shortDescription: { text: f.type } });
+      const enriched = enrichedTexts?.get(f);
+      rulesMap.set(id, {
+        id,
+        shortDescription: { text: f.type },
+        ...(enriched ? { help: { text: enriched, markdown: enriched } } : {}),
+      });
     }
   }
 

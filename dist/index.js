@@ -71730,12 +71730,17 @@ function severityToLevel(severity) {
 function ruleId(finding) {
     return finding.cwe_id ? `CWE-${finding.cwe_id}` : finding.type;
 }
-function findingsToSarif(findings) {
+function findingsToSarif(findings, enrichedTexts) {
     const rulesMap = new Map();
     for (const f of findings) {
         const id = ruleId(f);
         if (!rulesMap.has(id)) {
-            rulesMap.set(id, { id, shortDescription: { text: f.type } });
+            const enriched = enrichedTexts?.get(f);
+            rulesMap.set(id, {
+                id,
+                shortDescription: { text: f.type },
+                ...(enriched ? { help: { text: enriched, markdown: enriched } } : {}),
+            });
         }
     }
     const results = findings.map((f) => ({
@@ -77301,6 +77306,14 @@ async function main() {
             return;
         }
         core.warning(`[Guppy] Calculation: ${findings.length} potential vulnerabilities identified.`);
+        // Enrich all findings once — reused for both PR comments and SARIF help text
+        const enrichedTexts = new Map();
+        if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
+            core.info('[Guppy] Enriching findings with CWE/CAPEC data...');
+            await Promise.all(findings.map(async (f) => {
+                enrichedTexts.set(f, await enrichFinding(f));
+            }));
+        }
         // Post inline comments
         if (inputs.post_comments && findings.length > 0) {
             core.info('[Guppy] Posting inline comments to PR...');
@@ -77309,7 +77322,7 @@ async function main() {
                     owner: repo.owner,
                     repo: repo.repo,
                     pull_number: prNumber,
-                    body: await enrichFinding(finding),
+                    body: enrichedTexts.get(finding),
                     commit_id: context.payload.pull_request.head.sha,
                     path: finding.file,
                     line: finding.line,
@@ -77323,7 +77336,7 @@ async function main() {
         if (inputs.upload_sarif && findings.length > 0) {
             core.info('[Guppy] Uploading SARIF report to GitHub Advanced Security...');
             try {
-                const sarif = findingsToSarif(findings);
+                const sarif = findingsToSarif(findings, enrichedTexts);
                 const encoded = (0,external_zlib_.gzipSync)(Buffer.from(JSON.stringify(sarif))).toString('base64');
                 const prRef = `refs/pull/${prNumber}/head`;
                 await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {
