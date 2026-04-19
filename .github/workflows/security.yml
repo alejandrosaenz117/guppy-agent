@@ -6,6 +6,9 @@ on:
 jobs:
   guppy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: alejandrosaenz117/guppy-agent@v1
         with:
