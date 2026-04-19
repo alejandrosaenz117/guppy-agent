@@ -1,6 +1,5 @@
 export declare class Scrubber {
-    private patterns;
-    scrub(input: string): string;
+    scrub(input: string): Promise<string>;
 }
 export declare const scrubber: Scrubber;
 //# sourceMappingURL=scrubber.d.ts.map

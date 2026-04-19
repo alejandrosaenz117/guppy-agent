@@ -79,7 +79,7 @@ async function main() {
       : rawDiff;
 
     // Scrub secrets before sending to LLM
-    const scrubbedDiff = scrubber.scrub(truncatedDiff);
+    const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.debug('[Guppy] Diff scrubbed. Proceeding to analysis...');
 
     // Run Guppy auditing
@@ -126,6 +126,10 @@ async function main() {
     );
 
     if (blockingFindings.length > 0 && severityThreshold > 0) {
+      const hasCritical = blockingFindings.some((f) => f.severity === 'critical');
+      if (hasCritical) {
+        core.error(`[Guppy] It's a trap!`);
+      }
       core.error(
         `[Guppy] Calculation: Threat level exceeds safety parameters. Terminating build sequence, Bob.`
       );
@@ -139,7 +143,8 @@ async function main() {
     }
   } catch (error) {
     if (error instanceof Error) {
-      core.setFailed(`[Guppy] Error: ${scrubber.scrub(error.message)}`);
+      const safeMessage = await scrubber.scrub(error.message);
+      core.setFailed(`[Guppy] Error: ${safeMessage}`);
     } else {
       core.setFailed(`[Guppy] Unknown error occurred`);
     }

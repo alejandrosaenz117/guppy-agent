@@ -1,43 +1,42 @@
-// Pre-inference utility to mask secrets in diffs
+import { lintSource } from '@secretlint/core';
+import { creator as recommendPreset } from '@secretlint/secretlint-rule-preset-recommend';
+const secretlintConfig = {
+    rules: [
+        {
+            id: recommendPreset.meta.id,
+            rule: recommendPreset,
+            options: {},
+        },
+    ],
+};
 export class Scrubber {
-    patterns = [
-        // API Keys
-        /(?:api[_-]?key|apikey)\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-        /sk[-_]live[-_][a-zA-Z0-9_-]{48}/g,
-        /sk[-_]test[-_][a-zA-Z0-9_-]{48}/g,
-        /pk[-_]live[-_][a-zA-Z0-9_-]{24}/g,
-        // GitHub tokens (40+ hex chars or ghp_* pattern)
-        /ghp_[a-zA-Z0-9_]{36,255}/g,
-        /ghs_[a-zA-Z0-9_]{36,255}/g,
-        /ghr_[a-zA-Z0-9_]{36,255}/g,
-        /github_pat_[a-zA-Z0-9_]{36,255}/g,
-        // AWS keys
-        /AKIA[0-9A-Z]{16}/g,
-        /aws_secret_access_key\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-        // Generic patterns
-        /(?:password|passwd|pwd)\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-        /(?:secret|token|bearer)\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-        // OAuth tokens
-        /oauth[_-]?token\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-        /refresh[_-]?token\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,
-    ];
-    scrub(input) {
+    async scrub(input) {
         if (!input)
             return input;
-        let scrubbed = input;
-        this.patterns.forEach((pattern) => {
-            scrubbed = scrubbed.replace(pattern, (match) => {
-                // Check if match contains a key=value structure
-                const parts = match.split(/[:=]/);
-                if (parts.length > 1 && parts[0].trim().length > 0) {
-                    // Key-value pattern: preserve key, redact value
-                    const prefix = parts[0].trim();
-                    return `${prefix}="[REDACTED]"`;
-                }
-                // Standalone token (no key): just redact the token
-                return "[REDACTED]";
-            });
+        const result = await lintSource({
+            source: {
+                content: input,
+                filePath: 'diff.txt',
+                ext: '.txt',
+                contentType: 'text',
+            },
+            options: {
+                config: secretlintConfig,
+                noPhysicFilePath: true,
+            },
         });
+        if (!result.messages || result.messages.length === 0) {
+            return input;
+        }
+        // Redact detected secrets by replacing their ranges in reverse order
+        // (reverse so earlier replacements don't shift indices of later ones)
+        let scrubbed = input;
+        const ranges = [...result.messages]
+            .sort((a, b) => b.range[0] - a.range[0]);
+        for (const msg of ranges) {
+            const [start, end] = msg.range;
+            scrubbed = scrubbed.slice(0, start) + '[REDACTED]' + scrubbed.slice(end);
+        }
         return scrubbed;
     }
 }

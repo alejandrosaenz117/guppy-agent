@@ -40676,7 +40676,7 @@ async function main() {
             ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
             : rawDiff;
         // Scrub secrets before sending to LLM
-        const scrubbedDiff = _notfoundscrubber.scrubber.scrub(truncatedDiff);
+        const scrubbedDiff = await _notfoundscrubber.scrubber.scrub(truncatedDiff);
         core.debug('[Guppy] Diff scrubbed. Proceeding to analysis...');
         // Run Guppy auditing
         const guppy = new _notfoundguppy.Guppy(modelClient);
@@ -40712,6 +40712,10 @@ async function main() {
         const severityThreshold = _notfoundtypes.SEVERITY_ORDER[inputs.fail_on_severity];
         const blockingFindings = findings.filter((f) => _notfoundtypes.SEVERITY_ORDER[f.severity] >= severityThreshold);
         if (blockingFindings.length > 0 && severityThreshold > 0) {
+            const hasCritical = blockingFindings.some((f) => f.severity === 'critical');
+            if (hasCritical) {
+                core.error(`[Guppy] It's a trap!`);
+            }
             core.error(`[Guppy] Calculation: Threat level exceeds safety parameters. Terminating build sequence, Bob.`);
             core.error(`Found ${blockingFindings.length} issue(s) at or above ${inputs.fail_on_severity} severity.`);
             blockingFindings.forEach((f) => {
@@ -40725,7 +40729,8 @@ async function main() {
     }
     catch (error) {
         if (error instanceof Error) {
-            core.setFailed(`[Guppy] Error: ${_notfoundscrubber.scrubber.scrub(error.message)}`);
+            const safeMessage = await _notfoundscrubber.scrubber.scrub(error.message);
+            core.setFailed(`[Guppy] Error: ${safeMessage}`);
         }
         else {
             core.setFailed(`[Guppy] Unknown error occurred`);
