@@ -1,1 +1,2 @@
 dist/ merge=union
+dist/index.js eol=lf
