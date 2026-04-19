@@ -44,7 +44,7 @@ Rate the filtered findings. Return only the vetted results in JSON.`;
       prompt: `<code_diff>${diff}</code_diff>`,
       schema: FindingsSchema,
     }).catch((error) => {
-      core.debug('[Guppy] Hunter pass failed: ' + (error instanceof Error ? error.message : String(error)));
+      core.info('[Guppy] Hunter pass error: ' + (error instanceof Error ? error.message : String(error)));
       return { object: [] };
     });
 
