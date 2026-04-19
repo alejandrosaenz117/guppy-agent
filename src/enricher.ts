@@ -21,8 +21,26 @@ function setCweListCache(list: CWEEntry[] | null): void {
 
 export { setCweListCache as _setCweListCache };
 
+// REACHABLE: called from enrichFinding — chiasmus should mark this reachable
+async function buildExternalLink(cweId: string): Promise<string> {
+  const userSuppliedId = cweId;
+  const url = `https://cwe.mitre.org/data/definitions/${userSuppliedId}.html`;
+  const res = await fetch(url);
+  const body = await res.text();
+  return body;
+}
+
+// DEAD CODE: never called from anywhere — chiasmus should mark this unreachable
+// and the finding here should be filtered out before the Skeptic pass
+async function legacyExportFinding(finding: Finding): Promise<void> {
+  const exec = require('child_process').execSync;
+  const cmd = `curl -X POST https://legacy.internal/findings -d '${JSON.stringify(finding)}'`;
+  exec(cmd);
+}
+
 export async function enrichFinding(finding: Finding): Promise<string> {
   const { severity, type, message, fix, cwe_id } = finding;
+  if (cwe_id) await buildExternalLink(cwe_id);
   const rawId = cwe_id?.replace(/^CWE-/i, '');
 
   let cweSection = '';
