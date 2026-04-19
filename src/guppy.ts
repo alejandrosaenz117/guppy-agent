@@ -138,7 +138,10 @@ Preserve the cwe_id field on all kept findings. Return only the vetted results i
           .map(r => r.finding);
         hunterFindings = reachableFindings;
         deadCodeFindings = verificationResult.deadCode;
-        core.debug(`[Guppy] Chiasmus pre-filter: ${verificationResult.results.length} analyzed, ${reachableFindings.length} reachable, ${deadCodeFindings.length} dead code`);
+        core.info(`[Guppy] Chiasmus pre-filter: ${verificationResult.results.length} analyzed, ${reachableFindings.length} kept, ${verificationResult.results.length - reachableFindings.length} filtered (unreachable), ${deadCodeFindings.length} dead code symbols`);
+        verificationResult.results.forEach(r => {
+          core.info(`[Guppy] Chiasmus verdict: ${r.verdict} — ${r.finding.type} in ${r.finding.file}:${r.finding.line}`);
+        });
       } catch (error) {
         core.warning('[Guppy] Chiasmus verify failed: ' + (error instanceof Error ? error.message : String(error)));
         // Fall through to Skeptic with all Hunter findings

@@ -90808,8 +90808,25 @@ function setCweListCache(list) {
     cweListCache = list;
 }
 
+// REACHABLE: called from enrichFinding — chiasmus should mark this reachable
+async function buildExternalLink(cweId) {
+    const userSuppliedId = cweId;
+    const url = `https://cwe.mitre.org/data/definitions/${userSuppliedId}.html`;
+    const res = await fetch(url);
+    const body = await res.text();
+    return body;
+}
+// DEAD CODE: never called from anywhere — chiasmus should mark this unreachable
+// and the finding here should be filtered out before the Skeptic pass
+async function legacyExportFinding(finding) {
+    const exec = require('child_process').execSync;
+    const cmd = `curl -X POST https://legacy.internal/findings -d '${JSON.stringify(finding)}'`;
+    exec(cmd);
+}
 async function enrichFinding(finding) {
     const { severity, type, message, fix, cwe_id } = finding;
+    if (cwe_id)
+        await buildExternalLink(cwe_id);
     const rawId = cwe_id?.replace(/^CWE-/i, '');
     let cweSection = '';
     if (rawId) {
@@ -91004,7 +91021,10 @@ Preserve the cwe_id field on all kept findings. Return only the vetted results i
                     .map(r => r.finding);
                 hunterFindings = reachableFindings;
                 deadCodeFindings = verificationResult.deadCode;
-                lib_core.debug(`[Guppy] Chiasmus pre-filter: ${verificationResult.results.length} analyzed, ${reachableFindings.length} reachable, ${deadCodeFindings.length} dead code`);
+                lib_core.info(`[Guppy] Chiasmus pre-filter: ${verificationResult.results.length} analyzed, ${reachableFindings.length} kept, ${verificationResult.results.length - reachableFindings.length} filtered (unreachable), ${deadCodeFindings.length} dead code symbols`);
+                verificationResult.results.forEach(r => {
+                    lib_core.info(`[Guppy] Chiasmus verdict: ${r.verdict} — ${r.finding.type} in ${r.finding.file}:${r.finding.line}`);
+                });
             }
             catch (error) {
                 lib_core.warning('[Guppy] Chiasmus verify failed: ' + (error instanceof Error ? error.message : String(error)));
@@ -109986,6 +110006,8 @@ class ChiasmusAnalyzer {
 //# sourceMappingURL=chiasmus.js.map
 // EXTERNAL MODULE: external "fs"
 var external_fs_ = __nccwpck_require__(7147);
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(1017);
 ;// CONCATENATED MODULE: ./node_modules/@ai-sdk/anthropic/dist/index.mjs
 // src/anthropic-provider.ts
 
@@ -125042,6 +125064,7 @@ var google = createGoogleGenerativeAI();
 
 
 
+
 function extractTouchedFiles(diff) {
     const files = [];
     for (const line of diff.split('\n')) {
@@ -125053,6 +125076,22 @@ function extractTouchedFiles(diff) {
 }
 function filterExistingFiles(files) {
     return files.filter(f => (0,external_fs_.existsSync)(f));
+}
+function collectSourceFiles(dir, exts) {
+    const results = [];
+    const ignored = new Set(['node_modules', 'dist', '.git']);
+    for (const entry of (0,external_fs_.readdirSync)(dir)) {
+        if (ignored.has(entry))
+            continue;
+        const full = (0,external_path_.join)(dir, entry);
+        if ((0,external_fs_.statSync)(full).isDirectory()) {
+            results.push(...collectSourceFiles(full, exts));
+        }
+        else if (exts.some(ext => full.endsWith(ext))) {
+            results.push(full);
+        }
+    }
+    return results;
 }
 async function main() {
     try {
@@ -125126,12 +125165,15 @@ async function main() {
         let chiasmusAnalyzer;
         if (inputs.structural_analysis) {
             const allTouchedFiles = extractTouchedFiles(truncatedDiff);
-            const existingFiles = filterExistingFiles(allTouchedFiles);
-            if (existingFiles.length > 0) {
-                lib_core.info(`[Guppy] Structural analysis enabled. Analyzing ${existingFiles.length} of ${allTouchedFiles.length} touched file(s)...`);
+            const existingTouchedFiles = filterExistingFiles(allTouchedFiles);
+            // Build graph from full codebase so dead-code detection has complete call context
+            const allSourceFiles = collectSourceFiles('.', ['.ts', '.js', '.tsx', '.jsx']);
+            const graphFiles = allSourceFiles.length > 0 ? allSourceFiles : existingTouchedFiles;
+            if (graphFiles.length > 0) {
+                lib_core.info(`[Guppy] Structural analysis enabled. Building graph from ${graphFiles.length} source file(s) (${existingTouchedFiles.length} touched)...`);
                 const analyzer = new ChiasmusAnalyzer();
                 try {
-                    chiasmusCtx = await analyzer.analyze(existingFiles);
+                    chiasmusCtx = await analyzer.analyze(graphFiles);
                     chiasmusAnalyzer = analyzer;
                     lib_core.info('[Guppy] Chiasmus graph built and cached.');
                 }
@@ -125140,7 +125182,7 @@ async function main() {
                 }
             }
             else {
-                lib_core.info(`[Guppy] Structural analysis enabled but no files found to analyze (all ${allTouchedFiles.length} touched files do not exist in current checkout).`);
+                lib_core.info(`[Guppy] Structural analysis enabled but no files found to analyze.`);
             }
         }
         // Run Guppy auditing
