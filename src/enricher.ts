@@ -1,6 +1,9 @@
 import * as core from '@actions/core';
-import cweModule, { findById, CWEEntry } from 'fetch-cwe-list';
+import cweModule, { CWEEntry } from 'fetch-cwe-list';
 const fetchCweList: () => Promise<CWEEntry[]> = (cweModule as any).default ?? cweModule;
+function findById(list: CWEEntry[], id: string): CWEEntry | undefined {
+  return list.find((c) => c.ID === id);
+}
 import { Finding } from './types.js';
 
 let cweListCache: CWEEntry[] | null = null;

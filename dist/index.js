@@ -71664,6 +71664,9 @@ var fetch_cwe_list = __nccwpck_require__(7468);
 
 
 const fetchCweList = fetch_cwe_list["default"] ?? fetch_cwe_list;
+function findById(list, id) {
+    return list.find((c) => c.ID === id);
+}
 let cweListCache = null;
 async function getCweList() {
     if (cweListCache)
@@ -71688,7 +71691,7 @@ async function enrichFinding(finding) {
     if (rawId) {
         try {
             const list = await getCweList();
-            const cwe = (0,fetch_cwe_list.findById)(list, rawId);
+            const cwe = findById(list, rawId);
             if (cwe) {
                 cweSection += `\n\n**CWE-${cwe.ID}: ${cwe.Name}**\n${cwe.Description}`;
                 if (cwe.CAPEC_IDs?.length) {
