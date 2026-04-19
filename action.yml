@@ -1,0 +1,39 @@
+name: 'Guppy Security Scanner'
+description: 'Admiral Ackbar-inspired security analysis for GitHub PRs'
+author: 'guppy-agent'
+
+inputs:
+  api_key:
+    description: 'LLM API key (OpenAI, Anthropic, or Google)'
+    required: true
+  provider:
+    description: 'LLM provider: anthropic, openai, or google'
+    required: false
+    default: 'anthropic'
+  model:
+    description: 'Model name (e.g., claude-3-5-sonnet-20241022, gpt-4, gemini-2.0-flash)'
+    required: false
+    default: 'claude-3-5-sonnet-20241022'
+  post_comments:
+    description: 'Post findings as inline PR comments'
+    required: false
+    default: 'true'
+  fail_on_severity:
+    description: 'Fail the build if findings meet this severity (critical|high|medium|low|none)'
+    required: false
+    default: 'high'
+  github_token:
+    description: 'GitHub token for PR interactions'
+    required: true
+
+outputs:
+  findings_count:
+    description: 'Total number of vulnerabilities found'
+    value: ${{ job.outputs.findings_count }}
+  blocking_count:
+    description: 'Number of blocking-level vulnerabilities'
+    value: ${{ job.outputs.blocking_count }}
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
