@@ -84990,6 +84990,7 @@ Preserve the cwe_id field on all kept findings. Return only the vetted results i
                 prompt: `<code_diff>${diff}</code_diff>`,
                 tools: cweTools,
                 output: output_exports.object({ schema: FindingsSchema }),
+                stopWhen: stepCountIs(10),
             });
             lib_core.debug(`[Guppy] Hunter result text: ${hunterResult.text.substring(0, 200)}`);
             // Security: bound response size to prevent DoS
