@@ -9,16 +9,17 @@
     "test": "node --test dist/index.test.js 2>&1 || true"
   },
   "dependencies": {
-    "ai": "3.2.21",
-    "@ai-sdk/anthropic": "0.0.36",
-    "@ai-sdk/openai": "0.0.30",
-    "@ai-sdk/google": "0.0.18",
     "@actions/core": "1.10.1",
     "@actions/github": "6.0.0",
+    "@ai-sdk/anthropic": "0.0.36",
+    "@ai-sdk/google": "0.0.18",
+    "@ai-sdk/openai": "0.0.30",
+    "ai": "3.2.21",
     "zod": "3.22.4"
   },
   "devDependencies": {
-    "typescript": "5.3.3",
-    "@vercel/ncc": "0.36.1"
+    "@types/node": "^25.6.0",
+    "@vercel/ncc": "0.36.1",
+    "typescript": "5.3.3"
   }
 }

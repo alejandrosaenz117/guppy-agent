@@ -40670,12 +40670,21 @@ async function main() {
         });
         const rawDiff = typeof diffData === 'string' ? diffData : JSON.stringify(diffData);
         core.debug(`[Guppy] Diff size: ${rawDiff.length} bytes`);
+        // Enforce max diff size to prevent runaway costs and context overflow
+        const MAX_DIFF_BYTES = 500000;
+        const truncatedDiff = rawDiff.length > MAX_DIFF_BYTES
+            ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
+            : rawDiff;
         // Scrub secrets before sending to LLM
-        const scrubbedDiff = _notfoundscrubber.scrubber.scrub(rawDiff);
+        const scrubbedDiff = _notfoundscrubber.scrubber.scrub(truncatedDiff);
         core.debug('[Guppy] Diff scrubbed. Proceeding to analysis...');
         // Run Guppy auditing
         const guppy = new _notfoundguppy.Guppy(modelClient);
         const findings = await guppy.audit(scrubbedDiff);
+        // Clean up API key from environment after use
+        delete process.env.ANTHROPIC_API_KEY;
+        delete process.env.OPENAI_API_KEY;
+        delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
         if (findings.length === 0) {
             core.info('[Guppy] Observation: The tactical situation is clear. No traps detected, Bob.');
             return;
@@ -40716,7 +40725,7 @@ async function main() {
     }
     catch (error) {
         if (error instanceof Error) {
-            core.setFailed(`[Guppy] Error: ${error.message}`);
+            core.setFailed(`[Guppy] Error: ${_notfoundscrubber.scrubber.scrub(error.message)}`);
         }
         else {
             core.setFailed(`[Guppy] Unknown error occurred`);

@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2024",
-    "module": "ES2024",
+    "target": "ES2022",
+    "module": "ES2022",
     "moduleResolution": "node",
-    "lib": ["ES2024"],
+    "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

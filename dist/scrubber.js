@@ -8,7 +8,9 @@ export class Scrubber {
         /pk[-_]live[-_][a-zA-Z0-9_-]{24}/g,
         // GitHub tokens (40+ hex chars or ghp_* pattern)
         /ghp_[a-zA-Z0-9_]{36,255}/g,
-        /\b[a-f0-9]{40}\b/g,
+        /ghs_[a-zA-Z0-9_]{36,255}/g,
+        /ghr_[a-zA-Z0-9_]{36,255}/g,
+        /github_pat_[a-zA-Z0-9_]{36,255}/g,
         // AWS keys
         /AKIA[0-9A-Z]{16}/g,
         /aws_secret_access_key\s*[:=]\s*['\"]([^'\"]+)['\"]/gi,

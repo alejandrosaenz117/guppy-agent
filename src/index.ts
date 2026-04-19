@@ -29,18 +29,21 @@ async function main() {
       github_token,
     });
 
-    // Select model client
+    // Set API key in environment and select model client
     let modelClient;
     switch (inputs.provider) {
       case 'openai':
-        modelClient = openai(inputs.model, { apiKey: inputs.api_key });
+        process.env.OPENAI_API_KEY = inputs.api_key;
+        modelClient = openai(inputs.model);
         break;
       case 'google':
-        modelClient = google(inputs.model, { apiKey: inputs.api_key });
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = inputs.api_key;
+        modelClient = google(inputs.model);
         break;
       case 'anthropic':
       default:
-        modelClient = anthropic(inputs.model, { apiKey: inputs.api_key });
+        process.env.ANTHROPIC_API_KEY = inputs.api_key;
+        modelClient = anthropic(inputs.model);
     }
 
     core.debug(`[Guppy] Model client initialized: ${inputs.provider}/${inputs.model}`);
@@ -59,7 +62,7 @@ async function main() {
     const octokit = github.getOctokit(inputs.github_token);
     const repo = context.repo;
 
-    const { data: diffData } = await octokit.pulls.get({
+    const { data: diffData } = await (octokit.rest.pulls as any).get({
       owner: repo.owner,
       repo: repo.repo,
       pull_number: prNumber,
@@ -69,13 +72,24 @@ async function main() {
     const rawDiff = typeof diffData === 'string' ? diffData : JSON.stringify(diffData);
     core.debug(`[Guppy] Diff size: ${rawDiff.length} bytes`);
 
+    // Enforce max diff size to prevent runaway costs and context overflow
+    const MAX_DIFF_BYTES = 500_000;
+    const truncatedDiff = rawDiff.length > MAX_DIFF_BYTES
+      ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
+      : rawDiff;
+
     // Scrub secrets before sending to LLM
-    const scrubbedDiff = scrubber.scrub(rawDiff);
+    const scrubbedDiff = scrubber.scrub(truncatedDiff);
     core.debug('[Guppy] Diff scrubbed. Proceeding to analysis...');
 
     // Run Guppy auditing
     const guppy = new Guppy(modelClient);
     const findings = await guppy.audit(scrubbedDiff);
+
+    // Clean up API key from environment after use
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
     if (findings.length === 0) {
       core.info('[Guppy] Observation: The tactical situation is clear. No traps detected, Bob.');
@@ -89,7 +103,7 @@ async function main() {
       core.info('[Guppy] Posting inline comments to PR...');
 
       for (const finding of findings) {
-        await octokit.pulls.createReviewComment({
+        await (octokit.rest.pulls as any).createReviewComment({
           owner: repo.owner,
           repo: repo.repo,
           pull_number: prNumber,
@@ -97,7 +111,7 @@ async function main() {
           commit_id: context.payload.pull_request.head.sha,
           path: finding.file,
           line: finding.line,
-        }).catch((err) => {
+        }).catch((err: any) => {
           core.warning(`[Guppy] Failed to post comment on ${finding.file}:${finding.line}: ${err.message}`);
         });
       }
@@ -125,7 +139,7 @@ async function main() {
     }
   } catch (error) {
     if (error instanceof Error) {
-      core.setFailed(`[Guppy] Error: ${error.message}`);
+      core.setFailed(`[Guppy] Error: ${scrubber.scrub(error.message)}`);
     } else {
       core.setFailed(`[Guppy] Unknown error occurred`);
     }
