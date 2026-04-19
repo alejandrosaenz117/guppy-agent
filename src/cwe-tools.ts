@@ -25,6 +25,7 @@ export const cweTools = {
       const list = await getCweList();
       return list
         .filter(c => c.Name.toLowerCase().includes(keyword.toLowerCase()))
+        .slice(0, 20)
         .map(c => ({ id: c.ID, name: c.Name }));
     },
   }),

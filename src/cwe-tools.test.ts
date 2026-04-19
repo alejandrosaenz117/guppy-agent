@@ -18,6 +18,8 @@ const stubList = [
     Description: 'XSS description',
     CAPEC_IDs: ['86', '198'],
     Known_CVEs: [],
+    Abstraction: 'Class',
+    Status: 'Draft',
   },
   {
     ID: '89',
@@ -25,6 +27,8 @@ const stubList = [
     Description: 'SQLi description',
     CAPEC_IDs: ['66'],
     Known_CVEs: [],
+    Abstraction: 'Class',
+    Status: 'Draft',
   },
   {
     ID: '22',
@@ -32,8 +36,10 @@ const stubList = [
     Description: 'Path traversal description',
     CAPEC_IDs: [],
     Known_CVEs: [],
+    Abstraction: 'Class',
+    Status: 'Draft',
   },
-];
+] as any;
 
 before(() => {
   // Inject stub list into the in-memory cache so no network calls happen
