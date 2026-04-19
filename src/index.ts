@@ -63,15 +63,15 @@ async function main() {
     const octokit = github.getOctokit(inputs.github_token);
     const repo = context.repo;
 
-    const { data: diffData } = await (octokit.rest.pulls as any).get({
+    const diffResponse = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
       owner: repo.owner,
       repo: repo.repo,
       pull_number: prNumber,
-      mediaType: { format: 'diff' },
+      headers: { accept: 'application/vnd.github.v3.diff' },
     });
 
-    const rawDiff = typeof diffData === 'string' ? diffData : JSON.stringify(diffData);
-    core.debug(`[Guppy] Diff size: ${rawDiff.length} bytes`);
+    const rawDiff = typeof diffResponse.data === 'string' ? diffResponse.data : JSON.stringify(diffResponse.data);
+    core.info(`[Guppy] Diff size: ${rawDiff.length} bytes`);
 
     // Enforce max diff size to prevent runaway costs and context overflow
     const MAX_DIFF_BYTES = 500_000;
