@@ -138,17 +138,18 @@ async function main() {
       try {
         const sarif = findingsToSarif(findings);
         const encoded = gzipSync(Buffer.from(JSON.stringify(sarif))).toString('base64');
+        const prRef = `refs/pull/${prNumber}/head`;
         await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {
           owner: repo.owner,
           repo: repo.repo,
           commit_sha: context.payload.pull_request.head.sha,
-          ref: context.payload.pull_request.head.ref,
+          ref: prRef,
           sarif: encoded,
           tool_name: 'guppy-agent',
         });
         core.info('[Guppy] SARIF upload complete. Findings visible in Security tab.');
       } catch (err: any) {
-        core.warning(`[Guppy] SARIF upload failed: ${err.message}`);
+        core.warning(`[Guppy] SARIF upload failed (non-fatal): ${err.message}. Ensure security-events: write permission is set.`);
       }
     }
 
