@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { FindingSchema, FindingsSchema, ActionInputsSchema, SEVERITY_ORDER } from './types.js';
+import { FindingSchema, FindingsSchema, ActionInputsSchema, SEVERITY_ORDER, REACHABILITY_CONFIDENCE_LABELS } from './types.js';
 
 describe('FindingSchema', () => {
   const validFinding = {
@@ -200,5 +200,76 @@ describe('SEVERITY_ORDER', () => {
 
   it('none has value 0', () => {
     assert.equal(SEVERITY_ORDER.none, 0);
+  });
+});
+
+describe('REACHABILITY_CONFIDENCE_LABELS', () => {
+  it('should export REACHABILITY_CONFIDENCE_LABELS', () => {
+    assert.ok(REACHABILITY_CONFIDENCE_LABELS);
+  });
+
+  it('should have labels for confidence levels 1, 2, and 3', () => {
+    assert.ok(REACHABILITY_CONFIDENCE_LABELS[1]);
+    assert.ok(REACHABILITY_CONFIDENCE_LABELS[2]);
+    assert.ok(REACHABILITY_CONFIDENCE_LABELS[3]);
+  });
+
+  it('should have appropriate label strings', () => {
+    assert.equal(typeof REACHABILITY_CONFIDENCE_LABELS[1], 'string');
+    assert.equal(typeof REACHABILITY_CONFIDENCE_LABELS[2], 'string');
+    assert.equal(typeof REACHABILITY_CONFIDENCE_LABELS[3], 'string');
+  });
+});
+
+describe('ActionInputsSchema SCA fields', () => {
+  const validInputs = {
+    api_key: 'sk-ant-test123',
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    post_comments: true,
+    fail_on_severity: 'high',
+    github_token: 'ghs_token123',
+  };
+
+  it('defaults sca_enabled to true when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.sca_enabled, true);
+  });
+
+  it('defaults sca_scanner to osv when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.sca_scanner, 'osv');
+  });
+
+  it('defaults sca_reachability to true when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.sca_reachability, true);
+  });
+
+  it('defaults sca_reachability_threshold to high when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.sca_reachability_threshold, 'high');
+  });
+
+  it('defaults sca_reachability_confidence_threshold to 2 when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.sca_reachability_confidence_threshold, 2);
+  });
+
+  it('accepts valid sca_reachability_confidence_threshold values 1, 2, 3', () => {
+    for (const threshold of [1, 2, 3]) {
+      const result = ActionInputsSchema.safeParse({ ...validInputs, sca_reachability_confidence_threshold: threshold });
+      assert.ok(result.success, `threshold '${threshold}' should be valid`);
+    }
+  });
+
+  it('rejects invalid sca_reachability_confidence_threshold values', () => {
+    const result = ActionInputsSchema.safeParse({ ...validInputs, sca_reachability_confidence_threshold: 4 });
+    assert.ok(!result.success);
   });
 });

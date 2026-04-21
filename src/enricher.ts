@@ -4,7 +4,21 @@ const fetchCweList: () => Promise<CWEEntry[]> = (cweModule as any).default ?? cw
 function findById(list: CWEEntry[], id: string): CWEEntry | undefined {
   return list.find((c) => c.ID === id);
 }
-import { Finding } from './types.js';
+import { Enrichable, ScaFinding, REACHABILITY_CONFIDENCE_LABELS, Finding } from './types.js';
+
+/**
+ * Escapes markdown metacharacters to prevent injection attacks
+ */
+function escapeMarkdown(s: string): string {
+  return s.replace(/([\\`*_{}[\]()#+\-.!<>|])/g, '\\$1');
+}
+
+/**
+ * Validates CVE/GHSA ID format
+ */
+function isValidCveId(id: string): boolean {
+  return /^(CVE|GHSA)-[\w-]+$/.test(id);
+}
 
 let cweListCache: CWEEntry[] | null = null;
 
@@ -21,8 +35,8 @@ function setCweListCache(list: CWEEntry[] | null): void {
 
 export { setCweListCache as _setCweListCache };
 
-export async function enrichFinding(finding: Finding): Promise<string> {
-  const { severity, type, message, fix, cwe_id } = finding;
+// Helper function to build CWE section for enrichment
+async function buildCweSection(cwe_id?: string): Promise<string> {
   const rawId = cwe_id?.replace(/^CWE-/i, '');
 
   let cweSection = '';
@@ -55,6 +69,60 @@ export async function enrichFinding(finding: Finding): Promise<string> {
     }
   }
 
-  const cweLabel = rawId ? ` · CWE-${rawId}` : '';
+  return cweSection;
+}
+
+export async function enrichFinding(finding: Finding | (Enrichable & { severity?: string; type?: string; message?: string; fix?: string; cwe_id?: string })): Promise<string> {
+  const { severity = '', type = '', message = '', fix = '', cwe_id } = finding as any;
+
+  const cweSection = await buildCweSection(cwe_id);
+  const cweLabel = cwe_id?.replace(/^CWE-/i, '') ? ` · CWE-${cwe_id?.replace(/^CWE-/i, '')}` : '';
   return `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${message}\n\n**Recommended Fix:**\n${fix}${cweSection}`;
+}
+
+export function formatScaComment(finding: ScaFinding): string {
+  const { package: pkg, vulnerability, reachability, confidence } = finding;
+  const severityLabel = vulnerability.severity?.toUpperCase() ?? 'UNKNOWN';
+
+  // Validate CVE ID format before use (prevent injection attacks)
+  const cveId = vulnerability.id && isValidCveId(vulnerability.id)
+    ? escapeMarkdown(vulnerability.id)
+    : 'UNKNOWN';
+
+  // Escape package name and version
+  const escapedPkgName = escapeMarkdown(pkg.name);
+  const escapedVersion = escapeMarkdown(pkg.version);
+  const packageInfo = `${escapedPkgName} ${escapedVersion}`;
+
+  // Start with header: severity, package name/version, CVE ID
+  let comment = `⚠️ **[${severityLabel}] ${packageInfo} — ${cveId}**`;
+
+  // Add CWE ID label if available
+  const cweMatch = vulnerability.details?.match(/CWE-(\d+)/i);
+  if (cweMatch) {
+    comment += ` · CWE-${cweMatch[1]}`;
+  }
+
+  // Add message/summary (escape to prevent markdown injection)
+  const summary = vulnerability.summary || vulnerability.details;
+  if (summary) {
+    comment += `\n\n${escapeMarkdown(summary)}`;
+  }
+
+  // Add reachability verdict if available
+  if (reachability !== null && reachability !== undefined) {
+    let reachabilityLine = `\n\n**Reachability:** ${reachability}`;
+    if (confidence && REACHABILITY_CONFIDENCE_LABELS[confidence]) {
+      const label = REACHABILITY_CONFIDENCE_LABELS[confidence];
+      reachabilityLine += ` (${label} confidence)`;
+    }
+    comment += reachabilityLine;
+  }
+
+  // Add fix if available
+  if (vulnerability.details) {
+    comment += `\n\n**Fix:** Update to a patched version or apply security patches`;
+  }
+
+  return comment;
 }

@@ -33,12 +33,36 @@ inputs:
     description: 'Upload findings as SARIF to GitHub Advanced Security (requires security-events: write)'
     required: false
     default: 'false'
+  sca_enabled:
+    description: 'Enable SCA dependency scanning via lockfile diff analysis'
+    required: false
+    default: 'true'
+  sca_scanner:
+    description: 'Scanner to use for SCA (osv)'
+    required: false
+    default: 'osv'
+  sca_reachability:
+    description: 'Enable LLM reachability analysis for SCA findings'
+    required: false
+    default: 'true'
+  sca_reachability_threshold:
+    description: 'Minimum CVE severity for call-site (Phase 2) reachability analysis (critical|high|medium|low|none)'
+    required: false
+    default: 'high'
+  sca_reachability_confidence_threshold:
+    description: 'Minimum reachability confidence score (1-3) for a finding to be considered blocking'
+    required: false
+    default: '2'
 
 outputs:
   findings_count:
     description: 'Total number of vulnerabilities found'
   blocking_count:
     description: 'Number of blocking-level vulnerabilities'
+  sca_findings_count:
+    description: 'Total number of SCA vulnerabilities found'
+  sca_blocking_count:
+    description: 'Number of blocking-level SCA vulnerabilities'
 
 runs:
   using: 'node24'

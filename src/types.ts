@@ -1,5 +1,51 @@
 import { z } from 'zod';
 
+// SCA Types
+export interface Enrichable {
+  enrichable?: boolean;
+}
+
+export type ReachabilityVerdict = 'reachable' | 'unreachable' | 'unknown';
+
+export const REACHABILITY_CONFIDENCE_LABELS: Record<1 | 2 | 3, string> = {
+  1: 'low',
+  2: 'medium',
+  3: 'high',
+};
+
+export interface DetectedPackage {
+  name: string;
+  version: string;
+  ecosystem: string;
+}
+
+export interface OsvVulnerability extends Enrichable {
+  id: string;
+  summary: string;
+  details: string;
+  severity?: string;
+  affected_versions: string[];
+  cvss_score?: number;
+  package_name?: string;
+  installed_version?: string;
+  fixed_version?: string;
+  vulnerable_function?: string;
+  cwe_ids?: string[];
+}
+
+export interface ScannerAdapter {
+  scan(packages: DetectedPackage[]): Promise<OsvVulnerability[]>;
+  enrichVulnerabilities?(vulns: OsvVulnerability[]): Promise<OsvVulnerability[]>;
+}
+
+export interface ScaFinding {
+  package: DetectedPackage;
+  vulnerability: OsvVulnerability;
+  reachability?: ReachabilityVerdict;
+  confidence?: 1 | 2 | 3;
+  file?: string; // Path to lockfile where this vulnerability was detected
+}
+
 // Security finding from Guppy's analysis
 export const FindingSchema = z.object({
   file: z.string().max(500).describe('File path from diff'),
@@ -27,6 +73,11 @@ export const ActionInputsSchema = z.object({
   fail_on_severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high'),
   github_token: z.string().describe('GitHub token for Octokit'),
   upload_sarif: z.boolean().default(false),
+  sca_enabled: z.boolean().default(true).describe('Enable SCA (Software Composition Analysis) scanning'),
+  sca_scanner: z.enum(['osv']).default('osv').describe('SCA scanner to use'),
+  sca_reachability: z.boolean().default(true).describe('Enable reachability analysis for vulnerabilities'),
+  sca_reachability_threshold: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high').describe('Severity threshold for reachability analysis'),
+  sca_reachability_confidence_threshold: z.union([z.literal(1), z.literal(2), z.literal(3)]).default(2).describe('Confidence threshold for reachability verdicts'),
 });
 
 export type ActionInputs = z.infer<typeof ActionInputsSchema>;

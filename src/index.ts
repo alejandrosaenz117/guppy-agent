@@ -2,9 +2,14 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { Guppy } from './guppy.js';
 import { scrubber } from './scrubber.js';
-import { enrichFinding } from './enricher.js';
+import { enrichFinding, formatScaComment } from './enricher.js';
 import { findingsToSarif } from './sarif.js';
 import { ActionInputsSchema, SEVERITY_ORDER, Finding } from './types.js';
+import { ScaAuditor } from './sca/index.js';
+import { ScaHunter } from './sca/hunter.js';
+import { OsvAdapter } from './sca/adapters/osv.js';
+import { extractPackagesFromDiff } from './sca/lockfile.js';
+import type { ScaFinding } from './types.js';
 import { gzipSync } from 'zlib';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
@@ -33,6 +38,11 @@ async function main() {
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const github_token = core.getInput('github_token', { required: true });
     const upload_sarif = core.getBooleanInput('upload_sarif');
+    const sca_enabled = core.getBooleanInput('sca_enabled');
+    const sca_scanner = core.getInput('sca_scanner') || 'osv';
+    const sca_reachability = core.getBooleanInput('sca_reachability');
+    const sca_reachability_threshold = core.getInput('sca_reachability_threshold') || 'high';
+    const sca_reachability_confidence_threshold = parseInt(core.getInput('sca_reachability_confidence_threshold') || '2', 10) as 1 | 2 | 3;
 
     // Validate inputs
     const inputs = ActionInputsSchema.parse({
@@ -44,6 +54,11 @@ async function main() {
       fail_on_severity,
       github_token,
       upload_sarif,
+      sca_enabled,
+      sca_scanner,
+      sca_reachability,
+      sca_reachability_threshold,
+      sca_reachability_confidence_threshold,
     });
 
     // Set API key in environment and select model client
@@ -95,23 +110,41 @@ async function main() {
       ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
       : rawDiff;
 
+    // Extract packages from raw diff BEFORE scrubbing
+    // This prevents secretlint redaction from corrupting version strings
+    const rawPackages = extractPackagesFromDiff(truncatedDiff);
+
     // Scrub secrets before sending to LLM
     const scrubbedDiff = await scrubber.scrub(truncatedDiff);
     core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
 
-    // Run Guppy auditing
+    // Run SAST and SCA pipelines in parallel
     const guppy = new Guppy(modelClient, inputs.skeptic_pass);
-    core.info('[Guppy] Starting Hunter pass...');
-    const findings = await guppy.audit(scrubbedDiff);
-    core.info(`[Guppy] Audit complete. Raw findings: ${findings.length}`);
+    core.info('[Guppy] Starting SAST Hunter pass...');
+
+    let scaAuditor: ScaAuditor | null = null;
+    if (inputs.sca_enabled) {
+      const adapter = new OsvAdapter();
+      const hunter = inputs.sca_reachability
+        ? new ScaHunter(modelClient, inputs.sca_reachability_threshold)
+        : null;
+      scaAuditor = new ScaAuditor(adapter, hunter, rawPackages);
+    }
+
+    const [findings, scaFindings] = await Promise.all([
+      guppy.audit(scrubbedDiff),
+      scaAuditor ? scaAuditor.audit(scrubbedDiff) : Promise.resolve([] as ScaFinding[]),
+    ]);
+
+    core.info(`[Guppy] SAST: ${findings.length} finding(s). SCA: ${scaFindings.length} finding(s).`);
 
     // Clean up API key from environment after use
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    if (findings.length === 0) {
-      core.info('[Guppy] Observation: The tactical situation is clear. No traps detected, Bob.');
+    if (findings.length === 0 && scaFindings.length === 0) {
+      core.info('[Guppy] No vulnerabilities detected.');
       return;
     }
 
@@ -194,14 +227,58 @@ async function main() {
       }
     }
 
+    // Post SCA comments to PR
+    if (inputs.post_comments && scaFindings.length > 0) {
+      core.info(`[Guppy SCA] Posting ${scaFindings.length} comment(s)...`);
+      const existingComments = await octokit.paginate(
+        (octokit.rest.pulls as any).listReviewComments,
+        { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 }
+      );
+      const guppyScaComments = existingComments.filter(
+        (c: any) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('⚠️')
+      );
+
+      for (const finding of scaFindings) {
+        const body = formatScaComment(finding);
+        const existing = guppyScaComments.find(
+          (c: any) => c.path === finding.file && c.body?.includes(finding.vulnerability.id)
+        );
+        if (existing) {
+          await (octokit.rest.pulls as any).updateReviewComment({
+            owner: repo.owner, repo: repo.repo, comment_id: existing.id, body,
+          }).catch((err: any) => {
+            core.warning(`[Guppy SCA] Failed to update comment for ${finding.vulnerability.id}: ${err.message}`);
+          });
+        } else {
+          await (octokit.rest.pulls as any).createReviewComment({
+            owner: repo.owner, repo: repo.repo, pull_number: prNumber, body,
+            commit_id: context.payload.pull_request.head.sha,
+            path: finding.file, line: 1,
+          }).catch((err: any) => {
+            core.warning(`[Guppy SCA] Failed to post comment for ${finding.vulnerability.id}: ${err.message}`);
+          });
+        }
+      }
+    }
+
     // Check severity threshold
     const severityThreshold = SEVERITY_ORDER[inputs.fail_on_severity as keyof typeof SEVERITY_ORDER];
     const blockingFindings = findings.filter(
       (f) => SEVERITY_ORDER[f.severity as keyof typeof SEVERITY_ORDER] >= severityThreshold
     );
 
+    // Filter SCA findings by severity and confidence threshold
+    const scaBlockingFindings = scaFindings.filter((f) => {
+      const meetsSeverity = SEVERITY_ORDER[f.vulnerability.severity as keyof typeof SEVERITY_ORDER] >= severityThreshold;
+      if (!meetsSeverity) return false;
+      if (f.confidence === null || f.confidence === undefined) return true;
+      return f.confidence >= inputs.sca_reachability_confidence_threshold;
+    });
+
     core.setOutput('findings_count', findings.length);
     core.setOutput('blocking_count', blockingFindings.length);
+    core.setOutput('sca_findings_count', scaFindings.length);
+    core.setOutput('sca_blocking_count', scaBlockingFindings.length);
 
     if (blockingFindings.length > 0 && severityThreshold > 0) {
       const hasCritical = blockingFindings.some((f) => f.severity === 'critical');
@@ -218,6 +295,15 @@ async function main() {
       core.setFailed('[Guppy] Build blocked by security findings.');
     } else if (blockingFindings.length === 0 && findings.length > 0) {
       core.warning('[Guppy] Findings reported but below fail threshold. Proceeding with caution, Bob.');
+    }
+
+    if (scaBlockingFindings.length > 0 && severityThreshold > 0) {
+      core.error(`[Guppy SCA] ${scaBlockingFindings.length} blocking SCA finding(s)`);
+      scaBlockingFindings.forEach((f) => {
+        const reachLabel = f.confidence ? ` [confidence: ${f.confidence}]` : '';
+        core.error(`  - [${f.vulnerability.severity}] ${f.vulnerability.id} in ${f.package.name}${reachLabel}`);
+      });
+      core.setFailed('[Guppy] Build blocked by security findings.');
     }
   } catch (error) {
     if (error instanceof Error) {
