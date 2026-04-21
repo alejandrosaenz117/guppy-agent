@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && ncc build dist/index.js -o dist -m",
-    "test": "tsc && node --test dist/scrubber.test.js dist/types.test.js dist/guppy.test.js dist/sarif.test.js dist/sca/lockfile.test.js dist/sca/adapters/osv.test.js"
+    "test": "tsc && node --test dist/scrubber.test.js dist/types.test.js dist/guppy.test.js dist/sarif.test.js dist/sca/lockfile.test.js dist/sca/adapters/osv.test.js dist/sca/index.test.js"
   },
   "dependencies": {
     "@actions/core": "1.10.1",

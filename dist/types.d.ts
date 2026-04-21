@@ -31,6 +31,7 @@ export interface ScaFinding {
     vulnerability: OsvVulnerability;
     reachability?: ReachabilityVerdict;
     confidence?: 1 | 2 | 3;
+    file?: string;
 }
 export declare const FindingSchema: z.ZodObject<{
     file: z.ZodString;

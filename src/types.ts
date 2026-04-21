@@ -43,6 +43,7 @@ export interface ScaFinding {
   vulnerability: OsvVulnerability;
   reachability?: ReachabilityVerdict;
   confidence?: 1 | 2 | 3;
+  file?: string; // Path to lockfile where this vulnerability was detected
 }
 
 // Security finding from Guppy's analysis
