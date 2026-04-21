@@ -6,6 +6,20 @@ function findById(list: CWEEntry[], id: string): CWEEntry | undefined {
 }
 import { Enrichable, ScaFinding, REACHABILITY_CONFIDENCE_LABELS, Finding } from './types.js';
 
+/**
+ * Escapes markdown metacharacters to prevent injection attacks
+ */
+function escapeMarkdown(s: string): string {
+  return s.replace(/([\\`*_{}[\]()#+\-.!<>|])/g, '\\$1');
+}
+
+/**
+ * Validates CVE/GHSA ID format
+ */
+function isValidCveId(id: string): boolean {
+  return /^(CVE|GHSA)-[\w-]+$/.test(id);
+}
+
 let cweListCache: CWEEntry[] | null = null;
 
 export async function getCweList(): Promise<CWEEntry[]> {
@@ -69,8 +83,16 @@ export async function enrichFinding(finding: Finding | (Enrichable & { severity?
 export function formatScaComment(finding: ScaFinding): string {
   const { package: pkg, vulnerability, reachability, confidence } = finding;
   const severityLabel = vulnerability.severity?.toUpperCase() ?? 'UNKNOWN';
-  const cveId = vulnerability.id;
-  const packageInfo = `${pkg.name} ${pkg.version}`;
+
+  // Validate CVE ID format before use (prevent injection attacks)
+  const cveId = vulnerability.id && isValidCveId(vulnerability.id)
+    ? escapeMarkdown(vulnerability.id)
+    : 'UNKNOWN';
+
+  // Escape package name and version
+  const escapedPkgName = escapeMarkdown(pkg.name);
+  const escapedVersion = escapeMarkdown(pkg.version);
+  const packageInfo = `${escapedPkgName} ${escapedVersion}`;
 
   // Start with header: severity, package name/version, CVE ID
   let comment = `⚠️ **[${severityLabel}] ${packageInfo} — ${cveId}**`;
@@ -81,8 +103,11 @@ export function formatScaComment(finding: ScaFinding): string {
     comment += ` · CWE-${cweMatch[1]}`;
   }
 
-  // Add message/summary
-  comment += `\n\n${vulnerability.summary || vulnerability.details}`;
+  // Add message/summary (escape to prevent markdown injection)
+  const summary = vulnerability.summary || vulnerability.details;
+  if (summary) {
+    comment += `\n\n${escapeMarkdown(summary)}`;
+  }
 
   // Add reachability verdict if available
   if (reachability !== null && reachability !== undefined) {

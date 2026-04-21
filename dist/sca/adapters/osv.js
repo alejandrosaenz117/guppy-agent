@@ -1,3 +1,4 @@
+import { z } from 'zod';
 /**
  * Maps CVSS scores to severity levels
  */
@@ -158,7 +159,17 @@ export class OsvAdapter {
             if (!response.ok) {
                 throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
             }
-            const result = (await response.json());
+            const rawResult = await response.json();
+            // Validate OSV response against schema
+            let result;
+            try {
+                result = OsvBatchResponseSchema.parse(rawResult);
+            }
+            catch (error) {
+                const schemaError = error instanceof z.ZodError ? error.message : String(error);
+                console.warn('[OSV] Response validation failed:', schemaError);
+                continue;
+            }
             if (result.results) {
                 allVulns.push(...result.results);
             }
@@ -191,6 +202,10 @@ export class OsvAdapter {
         const packageMap = new Map(packages.map(p => [`${p.name}|${p.version}`, p]));
         if (!response.results || response.results.length === 0) {
             return vulnerabilities;
+        }
+        // Validate response length matches input packages (prevent CVE misattribution)
+        if (response.results.length !== packages.length) {
+            console.warn(`[OSV] Response length mismatch: got ${response.results.length} results for ${packages.length} packages`);
         }
         for (let i = 0; i < response.results.length; i++) {
             const result = response.results[i];
@@ -230,4 +245,35 @@ export class OsvAdapter {
         };
     }
 }
+/**
+ * OSV API Response types and validation schemas
+ */
+const OsvVulnerabilityDataSchema = z.object({
+    id: z.string(),
+    aliases: z.array(z.string()).optional(),
+    summary: z.string().optional(),
+    details: z.string().optional(),
+    severity: z.object({
+        type: z.string().optional(),
+        score: z.number().optional(),
+    }).optional(),
+    database_specific: z.record(z.unknown()).optional(),
+    affected: z.array(z.object({
+        package: z.object({
+            ecosystem: z.string().optional(),
+            name: z.string().optional(),
+        }).optional(),
+        versions: z.array(z.string()).optional(),
+        events: z.array(z.object({
+            introduced: z.string().optional(),
+            fixed: z.string().optional(),
+        })).optional(),
+    })).optional(),
+});
+const OsvBatchResultSchema = z.object({
+    vulns: z.array(OsvVulnerabilityDataSchema).optional(),
+});
+const OsvBatchResponseSchema = z.object({
+    results: z.array(OsvBatchResultSchema).optional(),
+});
 //# sourceMappingURL=osv.js.map

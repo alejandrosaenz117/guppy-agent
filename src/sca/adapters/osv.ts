@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { DetectedPackage, OsvVulnerability, ScannerAdapter } from '../../types.js';
 
 /**
@@ -182,7 +183,18 @@ export class OsvAdapter implements ScannerAdapter {
         throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
       }
 
-      const result = (await response.json()) as OsvBatchResponse;
+      const rawResult = await response.json();
+
+      // Validate OSV response against schema
+      let result: OsvBatchResponse;
+      try {
+        result = OsvBatchResponseSchema.parse(rawResult);
+      } catch (error) {
+        const schemaError = error instanceof z.ZodError ? error.message : String(error);
+        console.warn('[OSV] Response validation failed:', schemaError);
+        continue;
+      }
+
       if (result.results) {
         allVulns.push(...result.results);
       }
@@ -224,6 +236,11 @@ export class OsvAdapter implements ScannerAdapter {
 
     if (!response.results || response.results.length === 0) {
       return vulnerabilities;
+    }
+
+    // Validate response length matches input packages (prevent CVE misattribution)
+    if (response.results.length !== packages.length) {
+      console.warn(`[OSV] Response length mismatch: got ${response.results.length} results for ${packages.length} packages`);
     }
 
     for (let i = 0; i < response.results.length; i++) {
@@ -275,36 +292,40 @@ export class OsvAdapter implements ScannerAdapter {
 }
 
 /**
- * OSV API Response types
+ * OSV API Response types and validation schemas
  */
-interface OsvBatchResponse {
-  results?: OsvBatchResult[];
-}
+const OsvVulnerabilityDataSchema = z.object({
+  id: z.string(),
+  aliases: z.array(z.string()).optional(),
+  summary: z.string().optional(),
+  details: z.string().optional(),
+  severity: z.object({
+    type: z.string().optional(),
+    score: z.number().optional(),
+  }).optional(),
+  database_specific: z.record(z.unknown()).optional(),
+  affected: z.array(z.object({
+    package: z.object({
+      ecosystem: z.string().optional(),
+      name: z.string().optional(),
+    }).optional(),
+    versions: z.array(z.string()).optional(),
+    events: z.array(z.object({
+      introduced: z.string().optional(),
+      fixed: z.string().optional(),
+    })).optional(),
+  })).optional(),
+});
 
-interface OsvBatchResult {
-  vulns?: OsvVulnerabilityData[];
-}
+const OsvBatchResultSchema = z.object({
+  vulns: z.array(OsvVulnerabilityDataSchema).optional(),
+});
 
-interface OsvVulnerabilityData {
-  id: string;
-  aliases?: string[];
-  summary?: string;
-  details?: string;
-  severity?: {
-    type?: string;
-    score?: number;
-  };
-  database_specific?: Record<string, unknown>;
-  affected?: Array<{
-    package?: {
-      ecosystem?: string;
-      name?: string;
-    };
-    versions?: string[];
-    events?: Array<{
-      introduced?: string;
-      fixed?: string;
-    }>;
-  }>;
-}
+const OsvBatchResponseSchema = z.object({
+  results: z.array(OsvBatchResultSchema).optional(),
+});
+
+interface OsvBatchResponse extends z.infer<typeof OsvBatchResponseSchema> {}
+interface OsvBatchResult extends z.infer<typeof OsvBatchResultSchema> {}
+interface OsvVulnerabilityData extends z.infer<typeof OsvVulnerabilityDataSchema> {}
 
