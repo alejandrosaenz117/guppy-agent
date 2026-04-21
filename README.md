@@ -4,7 +4,7 @@
 
 ![guppy-agent banner](guppy-agent-banner.png)
 
-> _"It's a trap!"_ — Guppy, every time your PR has an SQL injection
+> _"It's a trap!"_ — Guppy, every time your PR has a critical vulnerability
 
 AI-powered security scanner for pull requests. Scans diffs, posts inline comments, blocks merges. Named after the ship AI from the Bobiverse — lore-accurate because Bob would absolutely automate this, and Guppy would absolutely be paranoid about it.
 
