@@ -26,10 +26,15 @@ export interface OsvVulnerability extends Enrichable {
   severity?: string;
   affected_versions: string[];
   cvss_score?: number;
+  package_name?: string;
+  installed_version?: string;
+  fixed_version?: string;
+  vulnerable_function?: string;
+  cwe_ids?: string[];
 }
 
 export interface ScannerAdapter {
-  scan(path: string): Promise<OsvVulnerability[]>;
+  scan(packages: DetectedPackage[]): Promise<OsvVulnerability[]>;
   enrichVulnerabilities?(vulns: OsvVulnerability[]): Promise<OsvVulnerability[]>;
 }
 
