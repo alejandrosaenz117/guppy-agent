@@ -1,0 +1,171 @@
+{
+  "empty_response": {
+    "results": [],
+    "description": "Empty OSV response - no vulnerabilities found"
+  },
+  "oversized_response": {
+    "results": [
+      {
+        "vulnerability": {
+          "id": "CVE-2024-12345",
+          "summary": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.",
+          "details": "This is an extremely long vulnerability description that should be handled gracefully. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+          "severity": "HIGH",
+          "published": "2024-01-01T00:00:00Z",
+          "modified": "2024-03-15T12:00:00Z",
+          "references": [
+            {
+              "type": "ADVISORY",
+              "url": "https://example.com/advisory/very-long-url-that-contains-lots-of-information-about-the-vulnerability-with-many-parameters-and-tracking-ids-and-other-metadata-that-might-be-useful-for-reference"
+            }
+          ]
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "vulnerable-package"
+            },
+            "versions": ["1.0.0", "1.1.0", "1.2.0", "2.0.0"],
+            "ranges": [
+              {
+                "type": "SEMVER",
+                "events": [
+                  { "introduced": "1.0.0" },
+                  { "fixed": "3.0.0" }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "description": "Oversized response with huge summaries"
+  },
+  "missing_fields": {
+    "results": [
+      {
+        "vulnerability": {
+          "id": "CVE-2024-54321",
+          "cve_id": null,
+          "summary": "Missing CVE ID",
+          "severity": "CRITICAL",
+          "published": "2024-02-01T00:00:00Z"
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "no-cve-package"
+            },
+            "versions": [null, "1.0.0"]
+          }
+        ]
+      }
+    ],
+    "description": "Missing critical fields (null cve_id, null versions)"
+  },
+  "invalid_cvss": {
+    "results": [
+      {
+        "vulnerability": {
+          "id": "CVE-2024-99999",
+          "summary": "Invalid CVSS scores",
+          "severity": "UNKNOWN",
+          "cvss": [
+            {
+              "score": "invalid-score",
+              "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+            },
+            {
+              "score": 15.5,
+              "vector": "INVALID_VECTOR_STRING"
+            },
+            {
+              "score": -1.0,
+              "vector": "CVSS:3.1/AV:N"
+            }
+          ],
+          "published": "2024-03-01T00:00:00Z"
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "cvss-broken-package"
+            },
+            "versions": ["1.0.0"]
+          }
+        ]
+      }
+    ],
+    "description": "Invalid or malformed CVSS scores"
+  },
+  "misaligned_results": {
+    "query_package_count": 10,
+    "returned_results": 3,
+    "results": [
+      {
+        "vulnerability": {
+          "id": "CVE-2024-11111",
+          "summary": "Affects multiple packages",
+          "severity": "MEDIUM"
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "package-a"
+            },
+            "versions": ["1.0.0"]
+          },
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "package-b"
+            },
+            "versions": ["2.0.0"]
+          }
+        ]
+      }
+    ],
+    "description": "Results length (3 items) doesn't match queried packages (10 items)"
+  },
+  "duplicate_vulnerabilities": {
+    "results": [
+      {
+        "vulnerability": {
+          "id": "CVE-2024-22222",
+          "summary": "Duplicate result",
+          "severity": "HIGH"
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "duplicate-pkg"
+            },
+            "versions": ["1.0.0"]
+          }
+        ]
+      },
+      {
+        "vulnerability": {
+          "id": "CVE-2024-22222",
+          "summary": "Duplicate result (exact same CVE)",
+          "severity": "HIGH"
+        },
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "duplicate-pkg"
+            },
+            "versions": ["1.0.0"]
+          }
+        ]
+      }
+    ],
+    "description": "Duplicate vulnerability IDs in response"
+  }
+}

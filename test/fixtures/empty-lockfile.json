@@ -1,0 +1,12 @@
+{
+  "lockfileVersion": 2,
+  "name": "empty-test",
+  "version": "1.0.0",
+  "packages": {
+    "": {
+      "name": "empty-test",
+      "version": "1.0.0",
+      "dependencies": {}
+    }
+  }
+}

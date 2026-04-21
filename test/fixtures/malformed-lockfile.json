@@ -1,0 +1,32 @@
+{
+  "lockfileVersion": 2,
+  "name": "malformed-test",
+  "version": "1.0.0",
+  "packages": {
+    "": {
+      "name": "malformed-test",
+      "version": "1.0.0",
+      "dependencies": {
+        "valid-package": "1.0.0",
+        "broken@package]": "2.0.0",
+        "missing-version-key": null
+      }
+    },
+    "valid-package@1.0.0": {
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/valid-package/-/valid-package-1.0.0.tgz"
+    },
+    "broken@package]@2.0.0": {
+      "version": "2.0.0"
+    },
+    "null-version@1.0.0": {
+      "version": null,
+      "resolved": "https://registry.npmjs.org/null-version/-/null-version-1.0.0.tgz"
+    },
+    "missing-license@1.0.0": {
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/missing-license/-/missing-license-1.0.0.tgz",
+      "license": null
+    }
+  }
+}

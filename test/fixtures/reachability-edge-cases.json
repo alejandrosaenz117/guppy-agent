@@ -1,0 +1,83 @@
+{
+  "no_imports_diff": {
+    "description": "Git diff with no import statements",
+    "diff_content": "diff --git a/src/utils.js b/src/utils.js\nindex 1234567..abcdefg 100644\n--- a/src/utils.js\n+++ b/src/utils.js\n@@ -1,10 +1,10 @@\n-const value = 'old value';\n+const value = 'new value';\n \n function helper() {\n-  console.log('old');\n+  console.log('new');\n }\n \n-const number = 42;\n+const number = 43;\n \n export { helper, value, number };\n",
+    "packages_in_lockfile": ["lodash", "axios", "express"],
+    "expected_reachability": "NOT_REACHABLE",
+    "reason": "No imports or references to dependencies in the diff"
+  },
+  "dynamic_imports_only": {
+    "description": "Git diff with only dynamic imports (require/import statements)",
+    "diff_content": "diff --git a/src/loader.js b/src/loader.js\nindex 1234567..abcdefg 100644\n--- a/src/loader.js\n+++ b/src/loader.js\n@@ -1,10 +1,15 @@\n \n async function loadModule(moduleName) {\n-  const module = await import('./' + moduleName);\n+  const packageName = process.env.PACKAGE_NAME || 'default';\n+  const module = await import('lodash-' + packageName);\n   return module.default;\n }\n \n async function dynamicRequire(name) {\n+  const pkgName = getPackageName();\n+  const lib = require('axios-' + pkgName);\n+  return lib;\n }\n \n export { loadModule, dynamicRequire };\n",
+    "packages_in_lockfile": ["lodash", "axios", "express"],
+    "expected_reachability": "UNCERTAIN",
+    "reason": "Dynamic imports prevent static analysis of which packages are used"
+  },
+  "aliased_imports": {
+    "description": "Git diff with aliased or namespace imports",
+    "diff_content": "diff --git a/src/math.js b/src/math.js\nindex 1234567..abcdefg 100644\n--- a/src/math.js\n+++ b/src/math.js\n@@ -1,5 +1,10 @@\n-import { max, min } from 'lodash';\n+import * as _ from 'lodash';\n+import * as math from 'mathjs';\n \n function calculate(arr) {\n-  return { max: max(arr), min: min(arr) };\n+  const result = _([1, 2, 3]).map(x => math.sqrt(x)).value();\n+  return result;\n }\n \n export { calculate };\n",
+    "packages_in_lockfile": ["lodash", "mathjs", "express"],
+    "expected_reachability": "FOUND_IN_SOURCE",
+    "reason": "Aliased imports are used in code but require deeper analysis to detect"
+  },
+  "mixed_severity_levels": {
+    "description": "Multiple packages with different severity vulnerabilities",
+    "packages": [
+      {
+        "name": "critical-pkg",
+        "version": "1.0.0",
+        "vulnerability": {
+          "id": "CVE-2024-CRITICAL",
+          "severity": "CRITICAL",
+          "reachability": "FOUND_IN_SOURCE"
+        }
+      },
+      {
+        "name": "high-pkg",
+        "version": "1.0.0",
+        "vulnerability": {
+          "id": "CVE-2024-HIGH",
+          "severity": "HIGH",
+          "reachability": "FOUND_IN_SOURCE"
+        }
+      },
+      {
+        "name": "medium-pkg",
+        "version": "1.0.0",
+        "vulnerability": {
+          "id": "CVE-2024-MEDIUM",
+          "severity": "MEDIUM",
+          "reachability": "FOUND_IN_SOURCE"
+        }
+      },
+      {
+        "name": "low-pkg",
+        "version": "1.0.0",
+        "vulnerability": {
+          "id": "CVE-2024-LOW",
+          "severity": "LOW",
+          "reachability": "NOT_REACHABLE"
+        }
+      }
+    ],
+    "expected_findings_after_filter": "All critical and high should be included; medium depends on threshold; low filtered out"
+  },
+  "large_diff_near_limit": {
+    "description": "Git diff approaching 500KB limit",
+    "size_bytes": 498000,
+    "line_count": 12500,
+    "file_changes": 150,
+    "additions": 6000,
+    "deletions": 6500,
+    "imports_included": ["lodash", "axios", "express", "react", "typescript"],
+    "expected_behavior": "Should process successfully but close to limit",
+    "reason": "Tests boundary condition near 500KB diff size limit"
+  },
+  "no_source_files_diff": {
+    "description": "Diff that only changes non-source files",
+    "diff_content": "diff --git a/package.json b/package.json\nindex 1234567..abcdefg 100644\n--- a/package.json\n+++ b/package.json\n@@ -1,5 +1,5 @@\n {\n   \"name\": \"my-app\",\n-  \"version\": \"1.0.0\",\n+  \"version\": \"1.0.1\",\n   \"dependencies\": {\n     \"lodash\": \"^4.17.21\"\n\ndiff --git a/README.md b/README.md\nindex 1234567..abcdefg 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,5 +1,5 @@\n-# Old Title\n+# New Title\n \n Some documentation update\n",
+    "packages_in_lockfile": ["lodash", "axios"],
+    "expected_reachability": "NOT_REACHABLE",
+    "reason": "Config and documentation changes don't reveal code-level reachability"
+  }
+}
