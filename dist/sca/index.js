@@ -11,9 +11,12 @@ import { extractPackagesFromDiff } from './lockfile.js';
 export class ScaAuditor {
     adapter;
     hunter;
-    constructor(adapter, hunter) {
+    preExtractedPackages;
+    constructor(adapter, hunter, // null when reachability disabled
+    preExtractedPackages) {
         this.adapter = adapter;
         this.hunter = hunter;
+        this.preExtractedPackages = preExtractedPackages;
     }
     /**
      * Run the full SCA pipeline on a git diff
@@ -21,7 +24,9 @@ export class ScaAuditor {
      */
     async audit(diff) {
         // Stage 1: Extract packages from lockfile changes
-        let packages = extractPackagesFromDiff(diff);
+        // Use pre-extracted packages if available (from raw diff before scrubbing)
+        // Otherwise extract from the provided diff
+        let packages = this.preExtractedPackages || extractPackagesFromDiff(diff);
         if (packages.length === 0) {
             return [];
         }
@@ -73,6 +78,13 @@ export class ScaAuditor {
         return this.enrichFindingsWithLockfilePath(findings, lockfileMap);
     }
     /**
+     * Sanitizes file paths to prevent log injection attacks.
+     * Strips :: metacharacters and other dangerous characters.
+     */
+    sanitisePath(path) {
+        return path.replace(/::/g, '_').replace(/[^a-zA-Z0-9._\/-]/g, '_');
+    }
+    /**
      * Build a map of package names to their lockfile paths
      */
     buildLockfileMap(diff) {
@@ -93,7 +105,8 @@ export class ScaAuditor {
             // Extract packages from this lockfile to map them
             const packages = extractPackagesFromDiff(`diff --git ${firstLine}\n${lines.slice(1).join('\n')}`);
             for (const pkg of packages) {
-                lockfileMap.set(pkg.name, filename);
+                // Sanitise path before storing to prevent log injection
+                lockfileMap.set(pkg.name, this.sanitisePath(filename));
             }
         }
         return lockfileMap;

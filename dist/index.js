@@ -8,6 +8,7 @@ import { ActionInputsSchema, SEVERITY_ORDER } from './types.js';
 import { ScaAuditor } from './sca/index.js';
 import { ScaHunter } from './sca/hunter.js';
 import { OsvAdapter } from './sca/adapters/osv.js';
+import { extractPackagesFromDiff } from './sca/lockfile.js';
 import { gzipSync } from 'zlib';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
@@ -96,6 +97,9 @@ async function main() {
         const truncatedDiff = rawDiff.length > MAX_DIFF_BYTES
             ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
             : rawDiff;
+        // Extract packages from raw diff BEFORE scrubbing
+        // This prevents secretlint redaction from corrupting version strings
+        const rawPackages = extractPackagesFromDiff(truncatedDiff);
         // Scrub secrets before sending to LLM
         const scrubbedDiff = await scrubber.scrub(truncatedDiff);
         core.info(`[Guppy] Scrubbed diff size: ${scrubbedDiff.length} bytes. Proceeding to analysis...`);
@@ -108,7 +112,7 @@ async function main() {
             const hunter = inputs.sca_reachability
                 ? new ScaHunter(modelClient, inputs.sca_reachability_threshold)
                 : null;
-            scaAuditor = new ScaAuditor(adapter, hunter);
+            scaAuditor = new ScaAuditor(adapter, hunter, rawPackages);
         }
         const [findings, scaFindings] = await Promise.all([
             guppy.audit(scrubbedDiff),
