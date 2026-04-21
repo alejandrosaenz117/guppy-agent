@@ -133,27 +133,41 @@ export class OsvAdapter {
         }
     }
     /**
-     * Calls the OSV Batch Query API
+     * Calls the OSV Batch Query API with chunking (100 packages per request)
      */
     async queryOsvBatch(packages) {
-        const queries = packages.map(pkg => ({
-            package: {
-                name: pkg.name,
-                ecosystem: this.mapEcosystem(pkg.ecosystem),
-            },
-            version: pkg.version,
-        }));
-        const response = await globalThis.fetch(this.apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ queries }),
-        });
-        if (!response.ok) {
-            throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
+        const CHUNK_SIZE = 100;
+        const allVulns = [];
+        for (let i = 0; i < packages.length; i += CHUNK_SIZE) {
+            const chunk = packages.slice(i, i + CHUNK_SIZE);
+            const queries = chunk.map(pkg => ({
+                package: {
+                    name: pkg.name,
+                    ecosystem: this.mapEcosystem(pkg.ecosystem),
+                },
+                version: pkg.version,
+            }));
+            const response = await globalThis.fetch(this.apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ queries }),
+                signal: AbortSignal.timeout(15000),
+            });
+            if (!response.ok) {
+                throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
+            }
+            const result = (await response.json());
+            if (result.results) {
+                allVulns.push(...result.results);
+            }
+            // Add delay between chunks to avoid rate limiting (100ms)
+            if (i + CHUNK_SIZE < packages.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
-        return (await response.json());
+        return { results: allVulns };
     }
     /**
      * Maps ecosystem names from DetectedPackage to OSV ecosystem format

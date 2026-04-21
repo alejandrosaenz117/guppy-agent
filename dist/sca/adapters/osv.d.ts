@@ -10,7 +10,7 @@ export declare class OsvAdapter implements ScannerAdapter {
      */
     scan(packages: DetectedPackage[]): Promise<OsvVulnerability[]>;
     /**
-     * Calls the OSV Batch Query API
+     * Calls the OSV Batch Query API with chunking (100 packages per request)
      */
     private queryOsvBatch;
     /**

@@ -153,30 +153,47 @@ export class OsvAdapter implements ScannerAdapter {
   }
 
   /**
-   * Calls the OSV Batch Query API
+   * Calls the OSV Batch Query API with chunking (100 packages per request)
    */
   private async queryOsvBatch(packages: DetectedPackage[]): Promise<OsvBatchResponse> {
-    const queries = packages.map(pkg => ({
-      package: {
-        name: pkg.name,
-        ecosystem: this.mapEcosystem(pkg.ecosystem),
-      },
-      version: pkg.version,
-    }));
+    const CHUNK_SIZE = 100;
+    const allVulns: OsvBatchResult[] = [];
 
-    const response = await globalThis.fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ queries }),
-    });
+    for (let i = 0; i < packages.length; i += CHUNK_SIZE) {
+      const chunk = packages.slice(i, i + CHUNK_SIZE);
+      const queries = chunk.map(pkg => ({
+        package: {
+          name: pkg.name,
+          ecosystem: this.mapEcosystem(pkg.ecosystem),
+        },
+        version: pkg.version,
+      }));
 
-    if (!response.ok) {
-      throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
+      const response = await globalThis.fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ queries }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OSV API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as OsvBatchResponse;
+      if (result.results) {
+        allVulns.push(...result.results);
+      }
+
+      // Add delay between chunks to avoid rate limiting (100ms)
+      if (i + CHUNK_SIZE < packages.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
 
-    return (await response.json()) as OsvBatchResponse;
+    return { results: allVulns };
   }
 
   /**

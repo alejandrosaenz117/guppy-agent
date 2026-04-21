@@ -21,9 +21,14 @@ export class ScaAuditor {
      */
     async audit(diff) {
         // Stage 1: Extract packages from lockfile changes
-        const packages = extractPackagesFromDiff(diff);
+        let packages = extractPackagesFromDiff(diff);
         if (packages.length === 0) {
             return [];
+        }
+        // Cap packages at 500 to prevent DoS via unbounded package lists
+        if (packages.length > 500) {
+            core.warning('[Guppy SCA] Package list truncated at 500 to prevent DoS attacks');
+            packages = packages.slice(0, 500);
         }
         core.info(`Detected ${packages.length} changed package(s)`);
         // Build a map of package names to lockfile paths for later enrichment
