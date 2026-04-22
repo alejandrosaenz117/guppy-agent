@@ -85392,14 +85392,29 @@ async function enrichFinding(finding, model) {
     const safMessage = escapeMarkdown(message);
     const safeFix = escapeMarkdown(fix);
     let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${safMessage}\n\n**Recommended Fix:**\n${safeFix}`;
-    // Generate secure code if model is available; otherwise use fix_snippet or fallback
-    let codeToShow = fix_snippet || fix;
-    if (model && !fix_snippet && fix) {
-        const { generateSecureCode } = await __nccwpck_require__.e(/* import() */ 332).then(__nccwpck_require__.bind(__nccwpck_require__, 7332));
-        const secureCode = await generateSecureCode(model, finding, fix);
-        if (secureCode) {
-            codeToShow = secureCode;
+    // Generate secure code using codesmith if model is available
+    // Prefer fix_snippet if provided, otherwise generate with codesmith
+    let codeToShow = fix_snippet;
+    if (model && !codeToShow && fix) {
+        try {
+            const { generateSecureCode } = await __nccwpck_require__.e(/* import() */ 332).then(__nccwpck_require__.bind(__nccwpck_require__, 7332));
+            const secureCode = await generateSecureCode(model, finding, fix);
+            if (secureCode) {
+                codeToShow = secureCode;
+            }
+            else {
+                // Fallback to fix text if codesmith returns null
+                codeToShow = fix;
+            }
         }
+        catch (err) {
+            lib_core.debug(`[Enricher] Codesmith failed, falling back to fix text: ${err}`);
+            codeToShow = fix;
+        }
+    }
+    else if (!codeToShow) {
+        // No model, no fix_snippet, use fix as fallback
+        codeToShow = fix;
     }
     const lang = getLangTag(finding.file ?? '');
     const { snippet: safSnippet, fenceLength } = sanitizeSnippet(codeToShow);

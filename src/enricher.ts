@@ -128,14 +128,26 @@ export async function enrichFinding(
 
   let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${safMessage}\n\n**Recommended Fix:**\n${safeFix}`;
 
-  // Generate secure code if model is available; otherwise use fix_snippet or fallback
-  let codeToShow = fix_snippet || fix;
-  if (model && !fix_snippet && fix) {
-    const { generateSecureCode } = await import('./codesmith.js');
-    const secureCode = await generateSecureCode(model, finding as Finding, fix);
-    if (secureCode) {
-      codeToShow = secureCode;
+  // Generate secure code using codesmith if model is available
+  // Prefer fix_snippet if provided, otherwise generate with codesmith
+  let codeToShow = fix_snippet;
+  if (model && !codeToShow && fix) {
+    try {
+      const { generateSecureCode } = await import('./codesmith.js');
+      const secureCode = await generateSecureCode(model, finding as Finding, fix);
+      if (secureCode) {
+        codeToShow = secureCode;
+      } else {
+        // Fallback to fix text if codesmith returns null
+        codeToShow = fix;
+      }
+    } catch (err) {
+      core.debug(`[Enricher] Codesmith failed, falling back to fix text: ${err}`);
+      codeToShow = fix;
     }
+  } else if (!codeToShow) {
+    // No model, no fix_snippet, use fix as fallback
+    codeToShow = fix;
   }
 
   const lang = getLangTag((finding as any).file ?? '');
