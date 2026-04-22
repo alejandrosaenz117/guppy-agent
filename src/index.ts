@@ -175,7 +175,6 @@ async function main() {
 
       for (const finding of findings) {
         const body = enrichedTexts.get(finding)!;
-        core.debug(`[Guppy] Posting comment on ${finding.file}:${finding.line} (length: ${body.length}, has Suggested Fix: ${body.includes('**Suggested Fix**')})`);
         const existing = guppyComments.find(
           (c: any) => c.path === finding.file && c.line === finding.line
         );
