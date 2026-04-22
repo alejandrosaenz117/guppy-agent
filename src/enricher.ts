@@ -14,6 +14,13 @@ function escapeMarkdown(s: string): string {
 }
 
 /**
+ * Sanitizes version strings to prevent markdown injection while preserving normal version formats
+ */
+function sanitizeVersion(v: string): string {
+  return v.replace(/([*_`[\]()#<>|])/g, '\\$1');
+}
+
+/**
  * Validates CVE/GHSA ID format
  */
 function isValidCveId(id: string): boolean {
@@ -34,6 +41,22 @@ function setCweListCache(list: CWEEntry[] | null): void {
 }
 
 export { setCweListCache as _setCweListCache };
+
+const EXT_TO_LANG: Record<string, string> = {
+  ts: 'ts', tsx: 'ts', js: 'js', jsx: 'js', mjs: 'js', cjs: 'js',
+  py: 'py', go: 'go', rb: 'rb', java: 'java', kt: 'kt',
+  rs: 'rs', cs: 'cs', cpp: 'cpp', c: 'c', php: 'php',
+  sh: 'sh', bash: 'sh', yaml: 'yaml', yml: 'yaml', json: 'json',
+};
+
+function getLangTag(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  return EXT_TO_LANG[ext] ?? '';
+}
+
+function sanitizeSnippet(snippet: string): string {
+  return snippet.replace(/`{3,}/g, (match) => match.split('').join('\u200B'));
+}
 
 // Helper function to build CWE section for enrichment
 async function buildCweSection(cwe_id?: string): Promise<string> {
@@ -72,12 +95,23 @@ async function buildCweSection(cwe_id?: string): Promise<string> {
   return cweSection;
 }
 
-export async function enrichFinding(finding: Finding | (Enrichable & { severity?: string; type?: string; message?: string; fix?: string; cwe_id?: string })): Promise<string> {
-  const { severity = '', type = '', message = '', fix = '', cwe_id } = finding as any;
+export async function enrichFinding(finding: Finding | (Enrichable & { severity?: string; type?: string; message?: string; fix?: string; fix_snippet?: string; cwe_id?: string })): Promise<string> {
+  const { severity = '', type = '', message = '', fix = '', fix_snippet, cwe_id } = finding as any;
 
   const cweSection = await buildCweSection(cwe_id);
   const cweLabel = cwe_id?.replace(/^CWE-/i, '') ? ` · CWE-${cwe_id?.replace(/^CWE-/i, '')}` : '';
-  return `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${message}\n\n**Recommended Fix:**\n${fix}${cweSection}`;
+
+  let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${message}\n\n**Recommended Fix:**\n${fix}`;
+
+  if (fix_snippet) {
+    const lang = getLangTag((finding as any).file ?? '');
+    const fence = lang ? `\`\`\`${lang}` : '```';
+    const safe = sanitizeSnippet(fix_snippet);
+    result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safe}\n\`\`\``;
+  }
+
+  result += cweSection;
+  return result;
 }
 
 export function formatScaComment(finding: ScaFinding): string {
@@ -120,7 +154,10 @@ export function formatScaComment(finding: ScaFinding): string {
   }
 
   // Add fix if available
-  if (vulnerability.details) {
+  if (vulnerability.fixed_version) {
+    const sanitizedFixedVersion = sanitizeVersion(vulnerability.fixed_version);
+    comment += `\n\n**Fix:** Upgrade \`${escapedPkgName}\` to version \`${sanitizedFixedVersion}\` or later`;
+  } else {
     comment += `\n\n**Fix:** Update to a patched version or apply security patches`;
   }
 
