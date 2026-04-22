@@ -273,5 +273,49 @@ describe('Guppy.audit()', () => {
     const findings = await guppy.audit('const x = 1;');
     assert.deepEqual(findings, []);
   });
+
+  it('preserves fix_snippet from hunter findings through audit()', async () => {
+    const findingWithSnippet: Finding = {
+      file: 'src/auth.ts',
+      line: 10,
+      severity: 'high',
+      type: 'SQL Injection',
+      message: 'User input used in SQL query',
+      fix: 'Use parameterized queries',
+      fix_snippet: 'const result = await db.query("SELECT * FROM users WHERE id = $1", [userId]);',
+    };
+    const guppy = new Guppy(makeGeneratingModel([findingWithSnippet]), false);
+    const findings = await guppy.audit('const x = 1;');
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].fix_snippet, findingWithSnippet.fix_snippet);
+  });
+
+  it('hunter prompt instructs LLM to populate fix_snippet', async () => {
+    let capturedSystem = '';
+    const capturingModel: LanguageModel = {
+      specificationVersion: 'v2',
+      provider: 'test',
+      modelId: 'test-model',
+      doGenerate: async (options: any) => {
+        const sysMsg = options.prompt?.find?.((m: any) => m.role === 'system');
+        if (sysMsg?.content) {
+          capturedSystem = Array.isArray(sysMsg.content)
+            ? sysMsg.content.map((c: any) => c.text ?? '').join('')
+            : sysMsg.content;
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ findings: [] }) }],
+          finishReason: 'stop',
+          usage: { inputTokens: 10, outputTokens: 10 },
+          rawCall: { rawPrompt: '', rawSettings: {} },
+        };
+      },
+      doStream: async () => { throw new Error('not used'); },
+    } as unknown as LanguageModel;
+
+    const guppy = new Guppy(capturingModel);
+    await guppy.audit('const x = 1;');
+    assert.ok(capturedSystem.includes('fix_snippet'), 'hunter prompt must mention fix_snippet');
+  });
 });
 
