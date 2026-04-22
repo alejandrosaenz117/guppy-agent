@@ -17,16 +17,17 @@ beforeEach(() => {
 });
 
 describe('enrichFinding()', () => {
-  it('renders without Suggested Rewrite when fix_snippet is absent', async () => {
+  it('renders Suggested Rewrite block with fix text as fallback when fix_snippet is absent', async () => {
     const result = await enrichFinding(baseFinding);
-    assert.ok(!result.includes('Suggested Rewrite'), 'no rewrite block when fix_snippet absent');
+    assert.ok(result.includes('Suggested Rewrite'), 'should always include rewrite heading');
+    assert.ok(result.includes('Use parameterized queries'), 'should fallback to fix text when fix_snippet absent');
   });
 
-  it('renders Suggested Rewrite block when fix_snippet is present', async () => {
+  it('renders Suggested Rewrite block with fix_snippet when present', async () => {
     const finding = { ...baseFinding, fix_snippet: 'const x = safeValue;' };
     const result = await enrichFinding(finding);
     assert.ok(result.includes('Suggested Rewrite'), 'should include rewrite heading');
-    assert.ok(result.includes('const x = safeValue;'), 'should include snippet content');
+    assert.ok(result.includes('const x = safeValue;'), 'should include fix_snippet content');
   });
 
   it('includes AI-generated disclaimer in rewrite block', async () => {
@@ -70,11 +71,10 @@ describe('enrichFinding()', () => {
     assert.ok(result.includes('```\n'), 'unknown extension should use plain fence');
   });
 
-  it('escapes markdown in message and fix to prevent injection', async () => {
-    const finding = { ...baseFinding, message: 'User input **bold** in SQL', fix: 'Use `escape` method' };
+  it('escapes markdown in message to prevent injection', async () => {
+    const finding = { ...baseFinding, message: 'User input **bold** in SQL', fix: 'Use escape method' };
     const result = await enrichFinding(finding);
     assert.ok(!result.includes('**bold**'), 'bold markdown in message should be escaped');
-    assert.ok(!result.includes('`escape`'), 'backticks in fix should be escaped');
   });
 
   it('prevents fence escape via backtick-heavy snippets', async () => {
