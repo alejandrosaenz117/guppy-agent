@@ -35,34 +35,53 @@ describe('enrichFinding()', () => {
     assert.ok(result.includes('AI-generated'), 'must include AI-generated disclaimer');
   });
 
-  it('neutralizes triple-backtick sequences in fix_snippet to prevent fenced-block breakout', async () => {
+  it('uses longer fence when snippet contains backticks to prevent breakout', async () => {
     const finding = { ...baseFinding, fix_snippet: 'const x = 1;\n```\nmalicious' };
     const result = await enrichFinding(finding);
-    assert.ok(!result.includes('\n```\n'), 'raw triple-backtick must not appear unmodified in output');
+    // Should use 4 backticks (3+1) since snippet has 3 consecutive backticks
+    assert.ok(result.includes('````'), 'should use 4-backtick fence to prevent escape');
+    // The snippet content with embedded ``` should be safely inside the 4-backtick fence
+    const snippetPos = result.indexOf('const x = 1;');
+    const fenceEnd = result.lastIndexOf('````');
+    assert.ok(snippetPos > 0 && fenceEnd > snippetPos, 'snippet should be inside fence');
   });
 
   it('uses ts language tag for .ts files', async () => {
     const finding = { ...baseFinding, file: 'src/auth.ts', fix_snippet: 'const x = 1;' };
     const result = await enrichFinding(finding);
-    assert.ok(result.includes('```ts\n') || result.includes('```typescript\n'), 'should use ts/typescript lang tag');
+    assert.ok(result.includes('```ts') || result.includes('```typescript'), 'should use ts/typescript lang tag');
   });
 
   it('uses js language tag for .js files', async () => {
     const finding = { ...baseFinding, file: 'src/auth.js', fix_snippet: 'const x = 1;' };
     const result = await enrichFinding(finding);
-    assert.ok(result.includes('```js\n') || result.includes('```javascript\n'), 'should use js/javascript lang tag');
+    assert.ok(result.includes('```js') || result.includes('```javascript'), 'should use js/javascript lang tag');
   });
 
   it('uses py language tag for .py files', async () => {
     const finding = { ...baseFinding, file: 'app/views.py', fix_snippet: 'x = safe_value' };
     const result = await enrichFinding(finding);
-    assert.ok(result.includes('```py\n') || result.includes('```python\n'), 'should use py/python lang tag');
+    assert.ok(result.includes('```py') || result.includes('```python'), 'should use py/python lang tag');
   });
 
   it('uses no language tag for unknown file extensions', async () => {
     const finding = { ...baseFinding, file: 'config.toml', fix_snippet: 'key = value' };
     const result = await enrichFinding(finding);
     assert.ok(result.includes('```\n'), 'unknown extension should use plain fence');
+  });
+
+  it('escapes markdown in message and fix to prevent injection', async () => {
+    const finding = { ...baseFinding, message: 'User input **bold** in SQL', fix: 'Use `escape` method' };
+    const result = await enrichFinding(finding);
+    assert.ok(!result.includes('**bold**'), 'bold markdown in message should be escaped');
+    assert.ok(!result.includes('`escape`'), 'backticks in fix should be escaped');
+  });
+
+  it('prevents fence escape via backtick-heavy snippets', async () => {
+    const finding = { ...baseFinding, fix_snippet: '`````\neval(x)' };
+    const result = await enrichFinding(finding);
+    // Should use 6 backticks (5+1) to prevent escape
+    assert.ok(result.includes('``````'), 'should use longer fence to prevent escape');
   });
 
   it('rewrite block appears after fix text and before CWE section', async () => {
@@ -102,12 +121,22 @@ describe('formatScaComment()', () => {
     assert.ok(!result.includes('Update to a patched version'), 'should not use generic fallback');
   });
 
-  it('escapes markdown in fixed_version to prevent injection', () => {
+  it('rejects malformed fixed_version and falls back to generic message', () => {
     const finding: ScaFinding = {
       ...baseSca,
-      vulnerability: { ...baseSca.vulnerability, fixed_version: '4.17.21**evil**' },
+      vulnerability: { ...baseSca.vulnerability, fixed_version: 'not-a-version-**evil**' },
     };
     const result = formatScaComment(finding);
-    assert.ok(!result.includes('**evil**'), 'markdown in fixed_version must be escaped');
+    assert.ok(result.includes('Update to a patched version'), 'fallback for invalid version format');
+    assert.ok(!result.includes('**evil**'), 'malformed version is rejected, not escaped');
+  });
+
+  it('accepts valid semantic version with prerelease', () => {
+    const finding: ScaFinding = {
+      ...baseSca,
+      vulnerability: { ...baseSca.vulnerability, fixed_version: '4.17.21-rc.1' },
+    };
+    const result = formatScaComment(finding);
+    assert.ok(result.includes('4.17.21-rc.1'), 'should accept valid prerelease version');
   });
 });

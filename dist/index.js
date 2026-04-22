@@ -84838,9 +84838,14 @@ function escapeMarkdown(s) {
     return s.replace(/([\\`*_{}[\]()#+\-.!<>|])/g, '\\$1');
 }
 /**
- * Sanitizes version strings to prevent markdown injection while preserving normal version formats
+ * Validates and sanitizes version strings — rejects malformed versions
  */
-function sanitizeVersion(v) {
+function validateAndSanitizeVersion(v) {
+    // Allowlist version format: digits.digits.digits[optional prerelease/build]
+    if (!/^[\d]+\.[\d]+\.[\d]+([\w.\-+]*)?$/.test(v)) {
+        return null; // Invalid version format
+    }
+    // Escape any remaining markdown characters
     return v.replace(/([*_`[\]()#<>|])/g, '\\$1');
 }
 /**
@@ -84872,7 +84877,20 @@ function getLangTag(filePath) {
     return EXT_TO_LANG[ext] ?? '';
 }
 function sanitizeSnippet(snippet) {
-    return snippet.replace(/`{3,}/g, (match) => match.split('').join('\u200B'));
+    // Find the maximum contiguous backtick run and create a fence with one more backtick
+    let maxBackticks = 0;
+    let current = 0;
+    for (const char of snippet) {
+        if (char === '`') {
+            current++;
+            maxBackticks = Math.max(maxBackticks, current);
+        }
+        else {
+            current = 0;
+        }
+    }
+    // Return the snippet and the fence length to use (min 3)
+    return { snippet, fenceLength: Math.max(3, maxBackticks + 1) };
 }
 // Helper function to build CWE section for enrichment
 async function buildCweSection(cwe_id) {
@@ -84906,12 +84924,16 @@ async function enrichFinding(finding) {
     const { severity = '', type = '', message = '', fix = '', fix_snippet, cwe_id } = finding;
     const cweSection = await buildCweSection(cwe_id);
     const cweLabel = cwe_id?.replace(/^CWE-/i, '') ? ` · CWE-${cwe_id?.replace(/^CWE-/i, '')}` : '';
-    let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${message}\n\n**Recommended Fix:**\n${fix}`;
+    // Sanitize message and fix to prevent markdown injection (LLM may echo attacker-controlled diff content)
+    const safMessage = escapeMarkdown(message);
+    const safeFix = escapeMarkdown(fix);
+    let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${safMessage}\n\n**Recommended Fix:**\n${safeFix}`;
     if (fix_snippet) {
         const lang = getLangTag(finding.file ?? '');
-        const fence = lang ? `\`\`\`${lang}` : '```';
-        const safe = sanitizeSnippet(fix_snippet);
-        result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safe}\n\`\`\``;
+        const { snippet: safSnippet, fenceLength } = sanitizeSnippet(fix_snippet);
+        const fenceChar = '`'.repeat(fenceLength);
+        const fence = lang ? `${fenceChar}${lang}` : fenceChar;
+        result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safSnippet}\n${fenceChar}`;
     }
     result += cweSection;
     return result;
@@ -84950,8 +84972,13 @@ function formatScaComment(finding) {
     }
     // Add fix if available
     if (vulnerability.fixed_version) {
-        const sanitizedFixedVersion = sanitizeVersion(vulnerability.fixed_version);
-        comment += `\n\n**Fix:** Upgrade \`${escapedPkgName}\` to version \`${sanitizedFixedVersion}\` or later`;
+        const sanitizedFixedVersion = validateAndSanitizeVersion(vulnerability.fixed_version);
+        if (sanitizedFixedVersion) {
+            comment += `\n\n**Fix:** Upgrade \`${escapedPkgName}\` to version \`${sanitizedFixedVersion}\` or later`;
+        }
+        else {
+            comment += `\n\n**Fix:** Update to a patched version or apply security patches`;
+        }
     }
     else {
         comment += `\n\n**Fix:** Update to a patched version or apply security patches`;
