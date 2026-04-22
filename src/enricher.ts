@@ -124,13 +124,13 @@ export async function enrichFinding(finding: Finding | (Enrichable & { severity?
 
   let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${safMessage}\n\n**Recommended Fix:**\n${safeFix}`;
 
-  if (fix_snippet) {
-    const lang = getLangTag((finding as any).file ?? '');
-    const { snippet: safSnippet, fenceLength } = sanitizeSnippet(fix_snippet);
-    const fenceChar = '`'.repeat(fenceLength);
-    const fence = lang ? `${fenceChar}${lang}` : fenceChar;
-    result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safSnippet}\n${fenceChar}`;
-  }
+  // Always show code block: prefer fix_snippet if available, else use fix text
+  const codeToShow = fix_snippet || fix;
+  const lang = getLangTag((finding as any).file ?? '');
+  const { snippet: safSnippet, fenceLength } = sanitizeSnippet(codeToShow);
+  const fenceChar = '`'.repeat(fenceLength);
+  const fence = lang ? `${fenceChar}${lang}` : fenceChar;
+  result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safSnippet}\n${fenceChar}`;
 
   result += cweSection;
   return result;
