@@ -54,6 +54,7 @@ export const FindingSchema = z.object({
   type: z.string().max(200).describe('Vulnerability type (e.g., "SQL Injection", "XSS")'),
   message: z.string().max(2000).describe('Detailed explanation of the issue'),
   fix: z.string().max(2000).describe('Recommended fix or mitigation'),
+  fix_snippet: z.string().max(3000).optional().describe('Rewritten version of the vulnerable code that mitigates the issue — drop-in replaceable, not pseudocode'),
   cwe_id: z.string().max(20).optional().describe('CWE ID (e.g., "79" for XSS, "89" for SQL Injection)'),
 });
 

@@ -73,6 +73,45 @@ describe('FindingSchema', () => {
       assert.ok(result.success, `severity '${severity}' should be valid`);
     }
   });
+
+  it('accepts fix_snippet when present', () => {
+    const result = FindingSchema.safeParse({
+      file: 'src/auth.ts',
+      line: 42,
+      severity: 'high',
+      type: 'SQL Injection',
+      message: 'User input concatenated directly into SQL query.',
+      fix: 'Use parameterized queries.',
+      fix_snippet: 'const result = await db.query("SELECT * FROM users WHERE id = $1", [userId]);',
+    });
+    assert.ok(result.success);
+  });
+
+  it('accepts finding without fix_snippet (optional field)', () => {
+    const result = FindingSchema.safeParse({
+      file: 'src/auth.ts',
+      line: 42,
+      severity: 'high',
+      type: 'SQL Injection',
+      message: 'User input concatenated directly into SQL query.',
+      fix: 'Use parameterized queries.',
+    });
+    assert.ok(result.success);
+    assert.equal(result.data?.fix_snippet, undefined);
+  });
+
+  it('rejects fix_snippet longer than 3000 chars', () => {
+    const result = FindingSchema.safeParse({
+      file: 'src/auth.ts',
+      line: 42,
+      severity: 'high',
+      type: 'SQL Injection',
+      message: 'msg',
+      fix: 'fix',
+      fix_snippet: 'x'.repeat(3001),
+    });
+    assert.ok(!result.success);
+  });
 });
 
 describe('FindingsSchema', () => {
