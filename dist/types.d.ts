@@ -40,6 +40,7 @@ export declare const FindingSchema: z.ZodObject<{
     type: z.ZodString;
     message: z.ZodString;
     fix: z.ZodString;
+    fix_snippet: z.ZodOptional<z.ZodString>;
     cwe_id: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     severity?: "low" | "medium" | "high" | "critical" | "none";
@@ -48,6 +49,7 @@ export declare const FindingSchema: z.ZodObject<{
     type?: string;
     message?: string;
     fix?: string;
+    fix_snippet?: string;
     cwe_id?: string;
 }, {
     severity?: "low" | "medium" | "high" | "critical" | "none";
@@ -56,6 +58,7 @@ export declare const FindingSchema: z.ZodObject<{
     type?: string;
     message?: string;
     fix?: string;
+    fix_snippet?: string;
     cwe_id?: string;
 }>;
 export type Finding = z.infer<typeof FindingSchema>;
@@ -67,6 +70,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type: z.ZodString;
         message: z.ZodString;
         fix: z.ZodString;
+        fix_snippet: z.ZodOptional<z.ZodString>;
         cwe_id: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         severity?: "low" | "medium" | "high" | "critical" | "none";
@@ -75,6 +79,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        fix_snippet?: string;
         cwe_id?: string;
     }, {
         severity?: "low" | "medium" | "high" | "critical" | "none";
@@ -83,6 +88,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        fix_snippet?: string;
         cwe_id?: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -93,6 +99,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        fix_snippet?: string;
         cwe_id?: string;
     }[];
 }, {
@@ -103,6 +110,7 @@ export declare const FindingsSchema: z.ZodObject<{
         type?: string;
         message?: string;
         fix?: string;
+        fix_snippet?: string;
         cwe_id?: string;
     }[];
 }>;

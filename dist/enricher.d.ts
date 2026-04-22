@@ -8,6 +8,7 @@ export declare function enrichFinding(finding: Finding | (Enrichable & {
     type?: string;
     message?: string;
     fix?: string;
+    fix_snippet?: string;
     cwe_id?: string;
 })): Promise<string>;
 export declare function formatScaComment(finding: ScaFinding): string;
