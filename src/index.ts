@@ -153,9 +153,9 @@ async function main() {
     // Enrich all findings once — reused for both PR comments and SARIF help text
     const enrichedTexts = new Map<Finding, string>();
     if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
-      core.info('[Guppy] Enriching findings with CWE/CAPEC data...');
+      core.info('[Guppy] Enriching findings with CWE/CAPEC data and generating secure code...');
       await Promise.all(findings.map(async (f) => {
-        enrichedTexts.set(f, await enrichFinding(f));
+        enrichedTexts.set(f, await enrichFinding(f, model));
       }));
     }
 

@@ -5,6 +5,7 @@ function findById(list: CWEEntry[], id: string): CWEEntry | undefined {
   return list.find((c) => c.ID === id);
 }
 import { Enrichable, ScaFinding, REACHABILITY_CONFIDENCE_LABELS, Finding } from './types.js';
+import type { LanguageModel } from 'ai';
 
 /**
  * Escapes markdown metacharacters to prevent injection attacks
@@ -112,7 +113,10 @@ async function buildCweSection(cwe_id?: string): Promise<string> {
   return cweSection;
 }
 
-export async function enrichFinding(finding: Finding | (Enrichable & { severity?: string; type?: string; message?: string; fix?: string; fix_snippet?: string; cwe_id?: string })): Promise<string> {
+export async function enrichFinding(
+  finding: Finding | (Enrichable & { severity?: string; type?: string; message?: string; fix?: string; fix_snippet?: string; cwe_id?: string }),
+  model?: LanguageModel
+): Promise<string> {
   const { severity = '', type = '', message = '', fix = '', fix_snippet, cwe_id } = finding as any;
 
   const cweSection = await buildCweSection(cwe_id);
@@ -124,8 +128,16 @@ export async function enrichFinding(finding: Finding | (Enrichable & { severity?
 
   let result = `🚨 **[${severity.toUpperCase()}] ${type}**${cweLabel}\n\n${safMessage}\n\n**Recommended Fix:**\n${safeFix}`;
 
-  // Always show code block: prefer fix_snippet if available, else use fix text
-  const codeToShow = fix_snippet || fix;
+  // Generate secure code if model is available; otherwise use fix_snippet or fallback
+  let codeToShow = fix_snippet || fix;
+  if (model && !fix_snippet && fix) {
+    const { generateSecureCode } = await import('./codesmith.js');
+    const secureCode = await generateSecureCode(model, finding as Finding, fix);
+    if (secureCode) {
+      codeToShow = secureCode;
+    }
+  }
+
   const lang = getLangTag((finding as any).file ?? '');
   const { snippet: safSnippet, fenceLength } = sanitizeSnippet(codeToShow);
   const fenceChar = '`'.repeat(fenceLength);
