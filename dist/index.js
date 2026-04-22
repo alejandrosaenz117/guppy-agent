@@ -109988,6 +109988,7 @@ async function main() {
             const guppyComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('🚨'));
             for (const finding of findings) {
                 const body = enrichedTexts.get(finding);
+                lib_core.debug(`[Guppy] Posting comment on ${finding.file}:${finding.line} (length: ${body.length}, has Suggested Fix: ${body.includes('**Suggested Fix**')})`);
                 const existing = guppyComments.find((c) => c.path === finding.file && c.line === finding.line);
                 if (existing) {
                     await octokit.rest.pulls.updateReviewComment({
