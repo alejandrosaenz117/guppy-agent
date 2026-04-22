@@ -85405,7 +85405,11 @@ async function enrichFinding(finding, model) {
     const { snippet: safSnippet, fenceLength } = sanitizeSnippet(codeToShow);
     const fenceChar = '`'.repeat(fenceLength);
     const fence = lang ? `${fenceChar}${lang}` : fenceChar;
-    result += `\n\n**Suggested Rewrite** *(AI-generated — review before applying):*\n${fence}\n${safSnippet}\n${fenceChar}`;
+    // Create GitHub suggestion code block
+    // When posted as a review comment, GitHub will show a "Commit suggestion" button
+    // The user can click it to apply the suggested fix
+    result += `\n\n**Suggested Fix** (click "Commit suggestion"):\n`;
+    result += `${fence}\n${safSnippet}\n${fenceChar}`;
     result += cweSection;
     return result;
 }
