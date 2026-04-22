@@ -10,7 +10,6 @@ describe('FindingSchema', () => {
     type: 'SQL Injection',
     message: 'User input concatenated directly into SQL query.',
     fix: 'Use parameterized queries.',
-    fix_snippet: 'const result = await db.query("SELECT * FROM users WHERE id = $1", [userId]);',
   };
 
   it('accepts a valid finding', () => {
@@ -75,7 +74,7 @@ describe('FindingSchema', () => {
     }
   });
 
-  it('requires fix_snippet field (now mandatory)', () => {
+  it('accepts finding without fix_snippet when enricher provides fallback', () => {
     const result = FindingSchema.safeParse({
       file: 'src/auth.ts',
       line: 42,
@@ -84,7 +83,7 @@ describe('FindingSchema', () => {
       message: 'User input concatenated directly into SQL query.',
       fix: 'Use parameterized queries.',
     });
-    assert.ok(!result.success, 'should fail without fix_snippet');
+    assert.ok(result.success, 'should accept findings without fix_snippet (enricher handles fallback)');
   });
 
   it('rejects fix_snippet longer than 3000 chars', () => {
@@ -110,8 +109,8 @@ describe('FindingsSchema', () => {
   it('accepts an object with valid findings array', () => {
     const result = FindingsSchema.safeParse({
       findings: [
-        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix', fix_snippet: 'safe_code_1' },
-        { file: 'b.ts', line: 2, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2', fix_snippet: 'safe_code_2' },
+        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
+        { file: 'b.ts', line: 2, severity: 'low', type: 'Info', message: 'msg2', fix: 'fix2' },
       ],
     });
     assert.ok(result.success);
@@ -120,20 +119,11 @@ describe('FindingsSchema', () => {
   it('rejects if any finding is invalid', () => {
     const result = FindingsSchema.safeParse({
       findings: [
-        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix', fix_snippet: 'code' },
-        { file: 'b.ts', line: 2, severity: 'invalid-severity', type: 'Info', message: 'msg2', fix: 'fix2', fix_snippet: 'code2' },
+        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
+        { file: 'b.ts', line: 2, severity: 'invalid-severity', type: 'Info', message: 'msg2', fix: 'fix2' },
       ],
     });
     assert.ok(!result.success);
-  });
-
-  it('rejects findings without fix_snippet', () => {
-    const result = FindingsSchema.safeParse({
-      findings: [
-        { file: 'a.ts', line: 1, severity: 'high', type: 'XSS', message: 'msg', fix: 'fix' },
-      ],
-    });
-    assert.ok(!result.success, 'should fail when fix_snippet is missing');
   });
 });
 

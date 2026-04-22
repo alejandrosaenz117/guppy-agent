@@ -61,7 +61,6 @@ const validFinding: Finding = {
   type: 'SQL Injection',
   message: 'User input used in SQL query',
   fix: 'Use parameterized queries',
-  fix_snippet: 'const result = db.query("SELECT * FROM users WHERE id = ?", [userId]);',
 };
 
 describe('Guppy.audit()', () => {

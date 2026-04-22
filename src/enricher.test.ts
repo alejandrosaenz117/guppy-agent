@@ -10,7 +10,6 @@ const baseFinding: Finding = {
   type: 'SQL Injection',
   message: 'User input used in SQL query.',
   fix: 'Use parameterized queries.',
-  fix_snippet: 'const result = db.query("SELECT * FROM users WHERE id = ?", [userId]);',
 };
 
 beforeEach(() => {
@@ -18,14 +17,21 @@ beforeEach(() => {
 });
 
 describe('enrichFinding()', () => {
-  it('renders Suggested Rewrite block with baseFinding fix_snippet', async () => {
+  it('renders without Suggested Rewrite when fix_snippet is absent', async () => {
     const result = await enrichFinding(baseFinding);
+    assert.ok(!result.includes('Suggested Rewrite'), 'no rewrite block when fix_snippet absent');
+  });
+
+  it('renders Suggested Rewrite block when fix_snippet is present', async () => {
+    const finding = { ...baseFinding, fix_snippet: 'const x = safeValue;' };
+    const result = await enrichFinding(finding);
     assert.ok(result.includes('Suggested Rewrite'), 'should include rewrite heading');
-    assert.ok(result.includes('db.query'), 'should include snippet content');
+    assert.ok(result.includes('const x = safeValue;'), 'should include snippet content');
   });
 
   it('includes AI-generated disclaimer in rewrite block', async () => {
-    const result = await enrichFinding(baseFinding);
+    const finding = { ...baseFinding, fix_snippet: 'const x = safeValue;' };
+    const result = await enrichFinding(finding);
     assert.ok(result.includes('AI-generated'), 'must include AI-generated disclaimer');
   });
 
