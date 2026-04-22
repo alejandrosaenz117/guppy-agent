@@ -109976,7 +109976,7 @@ async function main() {
         if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
             lib_core.info('[Guppy] Enriching findings with CWE/CAPEC data and generating secure code...');
             await Promise.all(findings.map(async (f) => {
-                enrichedTexts.set(f, await enrichFinding(f, model));
+                enrichedTexts.set(f, await enrichFinding(f, modelClient));
             }));
         }
         // Post inline comments only if SARIF upload is not enabled — when SARIF is
