@@ -109881,6 +109881,36 @@ function extractTouchedFiles(diff) {
     }
     return [...new Set(files)];
 }
+// Returns a map of file path -> set of line numbers that were added or modified in the diff
+function extractTouchedLines(diff) {
+    const result = new Map();
+    let currentFile = '';
+    let newLineNum = 0;
+    for (const line of diff.split('\n')) {
+        const fileMatch = line.match(/^diff --git a\/.+ b\/(.+)$/);
+        if (fileMatch) {
+            currentFile = fileMatch[1];
+            if (!result.has(currentFile))
+                result.set(currentFile, new Set());
+            continue;
+        }
+        const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (hunkMatch) {
+            newLineNum = parseInt(hunkMatch[1], 10);
+            continue;
+        }
+        if (!currentFile)
+            continue;
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+            result.get(currentFile).add(newLineNum);
+            newLineNum++;
+        }
+        else if (!line.startsWith('-')) {
+            newLineNum++;
+        }
+    }
+    return result;
+}
 async function main() {
     try {
         lib_core.info('[Guppy] Acknowledged. Initiating security scan. As you wish, Bob.');
@@ -109971,6 +110001,7 @@ async function main() {
         const truncatedDiff = rawDiff.length > MAX_DIFF_BYTES
             ? rawDiff.slice(0, MAX_DIFF_BYTES) + '\n[Guppy] Warning: Diff truncated at 500KB.'
             : rawDiff;
+        const touchedLines = extractTouchedLines(truncatedDiff);
         // Extract packages from raw diff BEFORE scrubbing
         // This prevents secretlint redaction from corrupting version strings
         const rawPackages = extractPackagesFromDiff(truncatedDiff);
@@ -110051,7 +110082,13 @@ async function main() {
                     });
                 }
             }
-            const staleGuppyComments = guppyComments.filter((c) => !commentableFindings.some((f) => f.file === c.path && f.line === c.line));
+            // Only resolve a stale comment if the flagged line was actually touched in this
+            // diff — if the line wasn't changed, the vulnerability may still exist in the file.
+            const staleGuppyComments = guppyComments.filter((c) => {
+                if (commentableFindings.some((f) => f.file === c.path && f.line === c.line))
+                    return false;
+                return touchedLines.get(c.path)?.has(c.line) ?? false;
+            });
             if (headShaValid && staleGuppyComments.length > 0) {
                 await Promise.all(staleGuppyComments.map((stale) => resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha)));
             }
@@ -110105,7 +110142,11 @@ async function main() {
                     });
                 }
             }
-            const staleScaComments = guppyScaComments.filter((c) => !commentableScaFindings.some((f) => isValidCveId(f.vulnerability.id) && c.body?.includes(f.vulnerability.id)));
+            const staleScaComments = guppyScaComments.filter((c) => {
+                if (commentableScaFindings.some((f) => isValidCveId(f.vulnerability.id) && c.body?.includes(f.vulnerability.id)))
+                    return false;
+                return touchedLines.has(c.path);
+            });
             if (headShaValid && staleScaComments.length > 0) {
                 await Promise.all(staleScaComments.map((stale) => resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha)));
             }
