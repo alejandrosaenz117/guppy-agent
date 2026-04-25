@@ -85266,6 +85266,7 @@ const ActionInputsSchema = types/* object */.Ry({
     skeptic_pass: types/* boolean */.O7().default(true),
     post_comments: types/* boolean */.O7().default(true),
     fail_on_severity: types/* enum */.Km(['critical', 'high', 'medium', 'low', 'none']).default('high'),
+    comment_severity_threshold: types/* enum */.Km(['critical', 'high', 'medium', 'low', 'none']).default('high'),
     github_token: types/* string */.Z_().describe('GitHub token for Octokit'),
     upload_sarif: types/* boolean */.O7().default(false),
     sca_enabled: types/* boolean */.O7().default(true).describe('Enable SCA (Software Composition Analysis) scanning'),
@@ -85412,8 +85413,9 @@ async function enrichFinding(finding, model) {
     const { snippet: safSnippet, fenceLength } = sanitizeSnippet(codeToShow);
     const fenceChar = '`'.repeat(fenceLength);
     const fence = lang ? `${fenceChar}${lang}` : fenceChar;
-    result += `\n\n**Suggested Fix:**\n`;
+    result += `\n\n**Suggested Rewrite:**\n`;
     result += `${fence}\n${safSnippet}\n${fenceChar}`;
+    result += `\n\n_AI-generated code - review and test before applying._`;
     result += cweSection;
     return result;
 }
@@ -109865,6 +109867,13 @@ function extractTouchedFiles(diff) {
 async function main() {
     try {
         lib_core.info('[Guppy] Acknowledged. Initiating security scan. As you wish, Bob.');
+        await lib_core.summary.addHeading('Guppy Security Scanner', 3)
+            .addTable([
+            [{ data: 'Input', header: true }, { data: 'Value', header: true }],
+            ['comment_severity_threshold', lib_core.getInput('comment_severity_threshold') || 'high'],
+            ['fail_on_severity', lib_core.getInput('fail_on_severity') || 'high'],
+        ])
+            .write();
         // Parse inputs
         const api_key = lib_core.getInput('api_key', { required: true });
         lib_core.setSecret(api_key);
@@ -109873,6 +109882,7 @@ async function main() {
         const skeptic_pass = lib_core.getBooleanInput('skeptic_pass');
         const post_comments = lib_core.getBooleanInput('post_comments');
         const fail_on_severity = lib_core.getInput('fail_on_severity') || 'high';
+        const comment_severity_threshold = lib_core.getInput('comment_severity_threshold') || 'high';
         const github_token = lib_core.getInput('github_token', { required: true });
         const upload_sarif = lib_core.getBooleanInput('upload_sarif');
         const sca_enabled = lib_core.getBooleanInput('sca_enabled');
@@ -109888,6 +109898,7 @@ async function main() {
             skeptic_pass,
             post_comments,
             fail_on_severity,
+            comment_severity_threshold,
             github_token,
             upload_sarif,
             sca_enabled,
@@ -109968,22 +109979,25 @@ async function main() {
             return;
         }
         lib_core.warning(`[Guppy] Calculation: ${findings.length} potential vulnerabilities identified.`);
+        // Compute comment severity threshold once for both SAST and SCA
+        const commentThreshold = SEVERITY_ORDER[inputs.comment_severity_threshold];
+        const commentableFindings = findings.filter((f) => SEVERITY_ORDER[f.severity] >= commentThreshold);
         // Enrich all findings once — reused for both PR comments and SARIF help text
         const enrichedTexts = new Map();
-        if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
+        if ((inputs.post_comments || inputs.upload_sarif) && commentableFindings.length > 0) {
             lib_core.info('[Guppy] Enriching findings with CWE/CAPEC data and generating secure code...');
-            await Promise.all(findings.map(async (f) => {
+            await Promise.all(commentableFindings.map(async (f) => {
                 enrichedTexts.set(f, await enrichFinding(f, modelClient));
             }));
         }
         // Post inline comments only if SARIF upload is not enabled — when SARIF is
         // active, GitHub's native code scanning annotations already surface findings.
-        if (inputs.post_comments && !inputs.upload_sarif && findings.length > 0) {
+        if (inputs.post_comments && !inputs.upload_sarif && commentableFindings.length > 0) {
             lib_core.info('[Guppy] Posting inline comments to PR...');
             // Fetch existing Guppy comments to update in place instead of duplicating
             const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
             const guppyComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('🚨'));
-            for (const finding of findings) {
+            for (const finding of commentableFindings) {
                 const body = enrichedTexts.get(finding);
                 const existing = guppyComments.find((c) => c.path === finding.file && c.line === finding.line);
                 if (existing) {
@@ -110010,7 +110024,7 @@ async function main() {
                     });
                 }
             }
-            lib_core.info(`[Guppy] ${findings.length} comment(s) posted.`);
+            lib_core.info(`[Guppy] ${commentableFindings.length} comment(s) posted.`);
         }
         // Upload SARIF to GitHub Advanced Security
         if (inputs.upload_sarif && findings.length > 0) {
@@ -110033,12 +110047,14 @@ async function main() {
                 lib_core.warning(`[Guppy] SARIF upload failed (non-fatal): ${err.message}. Ensure security-events: write permission is set.`);
             }
         }
+        // Filter SCA findings by comment severity threshold before posting comments
+        const commentableScaFindings = scaFindings.filter((f) => SEVERITY_ORDER[f.vulnerability.severity] >= commentThreshold);
         // Post SCA comments to PR
-        if (inputs.post_comments && scaFindings.length > 0) {
-            lib_core.info(`[Guppy SCA] Posting ${scaFindings.length} comment(s)...`);
+        if (inputs.post_comments && commentableScaFindings.length > 0) {
+            lib_core.info(`[Guppy SCA] Posting ${commentableScaFindings.length} comment(s)...`);
             const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
             const guppyScaComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('⚠️'));
-            for (const finding of scaFindings) {
+            for (const finding of commentableScaFindings) {
                 const body = formatScaComment(finding);
                 const existing = guppyScaComments.find((c) => c.path === finding.file && c.body?.includes(finding.vulnerability.id));
                 if (existing) {

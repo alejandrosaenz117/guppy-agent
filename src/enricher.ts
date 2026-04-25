@@ -150,8 +150,9 @@ export async function enrichFinding(
   const fenceChar = '`'.repeat(fenceLength);
   const fence = lang ? `${fenceChar}${lang}` : fenceChar;
 
-  result += `\n\n**Suggested Fix:**\n`;
+  result += `\n\n**Suggested Rewrite:**\n`;
   result += `${fence}\n${safSnippet}\n${fenceChar}`;
+  result += `\n\n_AI-generated code - review and test before applying._`;
 
   result += cweSection;
   return result;

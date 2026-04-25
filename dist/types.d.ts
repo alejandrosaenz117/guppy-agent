@@ -121,6 +121,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     skeptic_pass: z.ZodDefault<z.ZodBoolean>;
     post_comments: z.ZodDefault<z.ZodBoolean>;
     fail_on_severity: z.ZodDefault<z.ZodEnum<["critical", "high", "medium", "low", "none"]>>;
+    comment_severity_threshold: z.ZodDefault<z.ZodEnum<["critical", "high", "medium", "low", "none"]>>;
     github_token: z.ZodString;
     upload_sarif: z.ZodDefault<z.ZodBoolean>;
     sca_enabled: z.ZodDefault<z.ZodBoolean>;
@@ -135,6 +136,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     skeptic_pass?: boolean;
     post_comments?: boolean;
     fail_on_severity?: "low" | "medium" | "high" | "critical" | "none";
+    comment_severity_threshold?: "low" | "medium" | "high" | "critical" | "none";
     github_token?: string;
     upload_sarif?: boolean;
     sca_enabled?: boolean;
@@ -149,6 +151,7 @@ export declare const ActionInputsSchema: z.ZodObject<{
     skeptic_pass?: boolean;
     post_comments?: boolean;
     fail_on_severity?: "low" | "medium" | "high" | "critical" | "none";
+    comment_severity_threshold?: "low" | "medium" | "high" | "critical" | "none";
     github_token?: string;
     upload_sarif?: boolean;
     sca_enabled?: boolean;
