@@ -4,7 +4,7 @@
     "module": "Node16",
     "moduleResolution": "node16",
     "lib": ["ES2022"],
-    "outDir": "./dist",
+    "outDir": "./out",
     "rootDir": "./src",
     "strict": false,
     "noImplicitAny": false,

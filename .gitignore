@@ -5,18 +5,8 @@ node_modules/
 settings.local.json
 coverage/
 
-# tsc intermediate output — only dist/index.js (ncc bundle) is committed
-dist/*.d.ts
-dist/*.d.ts.map
-dist/*.js.map
-dist/enricher.js
-dist/guppy.js
-dist/index.d.ts
-dist/sarif.js
-dist/scrubber.js
-dist/types.js
-dist/vulnerable.js
-dist/*.test.js
+# tsc intermediate output (ncc bundles from out/ into dist/)
+out/
 
 # Superpowers docs (specs and plans)
 docs/superpowers/

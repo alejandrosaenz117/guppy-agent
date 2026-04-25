@@ -85237,7 +85237,7 @@ var github = __nccwpck_require__(5438);
 var dist = __nccwpck_require__(9438);
 // EXTERNAL MODULE: ./node_modules/zod/v3/types.js + 4 modules
 var types = __nccwpck_require__(9622);
-;// CONCATENATED MODULE: ./dist/types.js
+;// CONCATENATED MODULE: ./out/types.js
 
 const REACHABILITY_CONFIDENCE_LABELS = {
     1: 'low',
@@ -85288,7 +85288,7 @@ const SEVERITY_ORDER = {
 var provider_utils_dist = __nccwpck_require__(7623);
 // EXTERNAL MODULE: ./node_modules/fetch-cwe-list/index.js
 var fetch_cwe_list = __nccwpck_require__(7468);
-;// CONCATENATED MODULE: ./dist/enricher.js
+;// CONCATENATED MODULE: ./out/enricher.js
 
 
 const fetchCweList = fetch_cwe_list["default"] ?? fetch_cwe_list;
@@ -85398,7 +85398,7 @@ async function enrichFinding(finding, model) {
     // Try to generate more detailed code using codesmith if we only have fix text
     if (model && !fix_snippet && fix && codeToShow) {
         try {
-            const { generateSecureCode } = await __nccwpck_require__.e(/* import() */ 332).then(__nccwpck_require__.bind(__nccwpck_require__, 7332));
+            const { generateSecureCode } = await __nccwpck_require__.e(/* import() */ 176).then(__nccwpck_require__.bind(__nccwpck_require__, 1176));
             const secureCode = await generateSecureCode(model, finding, fix);
             if (secureCode) {
                 codeToShow = secureCode;
@@ -85467,7 +85467,7 @@ function formatScaComment(finding) {
     return comment;
 }
 //# sourceMappingURL=enricher.js.map
-;// CONCATENATED MODULE: ./dist/cwe-tools.js
+;// CONCATENATED MODULE: ./out/cwe-tools.js
 
 
 
@@ -85508,7 +85508,7 @@ const cweTools = {
     }),
 };
 //# sourceMappingURL=cwe-tools.js.map
-;// CONCATENATED MODULE: ./dist/guppy.js
+;// CONCATENATED MODULE: ./out/guppy.js
 
 
 
@@ -93500,7 +93500,7 @@ const creator = {
 
 //# sourceMappingURL=index.js.map
 
-;// CONCATENATED MODULE: ./dist/scrubber.js
+;// CONCATENATED MODULE: ./out/scrubber.js
 
 
 const secretlintConfig = {
@@ -93547,7 +93547,7 @@ const scrubber = new Scrubber();
 //# sourceMappingURL=scrubber.js.map
 // EXTERNAL MODULE: external "zlib"
 var external_zlib_ = __nccwpck_require__(9796);
-;// CONCATENATED MODULE: ./dist/sarif.js
+;// CONCATENATED MODULE: ./out/sarif.js
 
 const SARIF_SCHEMA = 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json';
 function severityToLevel(severity) {
@@ -93606,7 +93606,7 @@ function sarifToBase64(sarif) {
     return gzipSync(Buffer.from(JSON.stringify(sarif))).toString('base64');
 }
 //# sourceMappingURL=sarif.js.map
-;// CONCATENATED MODULE: ./dist/sca/lockfile.js
+;// CONCATENATED MODULE: ./out/sca/lockfile.js
 /**
  * Parses a git diff and extracts packages from lockfile changes.
  * Only includes lines that were added (starting with '+' but not '+++').
@@ -94069,7 +94069,7 @@ function parseGemfileLock(lines, ecosystem) {
     });
 }
 //# sourceMappingURL=lockfile.js.map
-;// CONCATENATED MODULE: ./dist/sca/hunter.js
+;// CONCATENATED MODULE: ./out/sca/hunter.js
 
 
 /**
@@ -94361,7 +94361,7 @@ For each vulnerable package/function, determine if it's called in the code (dire
 //# sourceMappingURL=hunter.js.map
 // EXTERNAL MODULE: ./node_modules/zod/v3/ZodError.js
 var ZodError = __nccwpck_require__(5674);
-;// CONCATENATED MODULE: ./dist/sca/adapters/osv.js
+;// CONCATENATED MODULE: ./out/sca/adapters/osv.js
 
 /**
  * Maps CVSS scores to severity levels
@@ -94641,7 +94641,7 @@ const OsvBatchResponseSchema = types/* object */.Ry({
     results: types/* array */.IX(OsvBatchResultSchema).optional(),
 });
 //# sourceMappingURL=osv.js.map
-;// CONCATENATED MODULE: ./dist/sca/index.js
+;// CONCATENATED MODULE: ./out/sca/index.js
 
 
 /**
@@ -109844,7 +109844,7 @@ function createGoogleGenerativeAI(options = {}) {
 var google = createGoogleGenerativeAI();
 
 //# sourceMappingURL=index.mjs.map
-;// CONCATENATED MODULE: ./dist/index.js
+;// CONCATENATED MODULE: ./out/index.js
 
 
 
