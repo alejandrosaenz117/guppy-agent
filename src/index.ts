@@ -166,6 +166,7 @@ async function main() {
     const commentableFindings = findings.filter(
       (f) => SEVERITY_ORDER[f.severity as keyof typeof SEVERITY_ORDER] >= commentThreshold
     );
+    core.debug(`[Guppy] Comment threshold: ${inputs.comment_severity_threshold} (${commentThreshold}), Commentable findings: ${commentableFindings.length}/${findings.length}`);
 
     // Enrich all findings once — reused for both PR comments and SARIF help text
     const enrichedTexts = new Map<Finding, string>();
