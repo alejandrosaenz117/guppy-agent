@@ -4,8 +4,8 @@ author: 'guppy-agent'
 
 inputs:
   api_key:
-    description: 'LLM API key (OpenAI, Anthropic, or Google)'
-    required: true
+    description: 'LLM API key (OpenAI, Anthropic, or Google). Prefer setting LLM_API_KEY as an environment variable instead.'
+    required: false
   provider:
     description: 'LLM provider: anthropic, openai, or google'
     required: false

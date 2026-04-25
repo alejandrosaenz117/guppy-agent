@@ -109875,7 +109875,10 @@ async function main() {
         ])
             .write();
         // Parse inputs
-        const api_key = lib_core.getInput('api_key', { required: true });
+        const api_key = process.env.LLM_API_KEY || lib_core.getInput('api_key');
+        if (!api_key) {
+            throw new Error('[Guppy] Error: LLM API key not provided. Set either environment variable "LLM_API_KEY" or input "api_key"');
+        }
         lib_core.setSecret(api_key);
         const provider = lib_core.getInput('provider') || 'anthropic';
         const model = lib_core.getInput('model') || 'claude-3-5-sonnet-20241022';
