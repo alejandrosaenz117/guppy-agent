@@ -12,17 +12,21 @@ AI-powered security scanner for pull requests. Scans diffs, posts inline comment
 
 ```yaml
 - uses: alejandrosaenz117/guppy-agent@v1
-  with:
-    api_key: ${{ secrets.LLM_API_KEY }}
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+  env:
+    LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+Passing secrets via `env:` instead of `with:` is the recommended pattern — it avoids exposing secrets as action input parameters, which can appear in workflow logs and metadata.
+
+Both `LLM_API_KEY` and `GITHUB_TOKEN` also accept the legacy `with:` input parameters (`api_key` and `github_token`) for backward compatibility.
 
 ## Inputs
 
 | Input                | Default                      | Description                                     |
 | -------------------- | ---------------------------- | ----------------------------------------------- |
-| `api_key`            | required                     | Anthropic, OpenAI, or Google API key            |
-| `github_token`       | required                     | `${{ secrets.GITHUB_TOKEN }}` works             |
+| `api_key`            | —                            | Anthropic, OpenAI, or Google API key. Prefer `LLM_API_KEY` env var. |
+| `github_token`       | —                            | GitHub token. Prefer `GITHUB_TOKEN` env var (set automatically by the runner). |
 | `provider`           | `anthropic`                  | `anthropic` · `openai` · `google`               |
 | `model`              | `claude-3-5-sonnet-20241022` | Any model from the provider                     |
 | `fail_on_severity`   | `high`                       | `critical` · `high` · `medium` · `low` · `none` |
