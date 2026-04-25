@@ -109886,7 +109886,10 @@ async function main() {
         const post_comments = lib_core.getBooleanInput('post_comments');
         const fail_on_severity = lib_core.getInput('fail_on_severity') || 'high';
         const comment_severity_threshold = lib_core.getInput('comment_severity_threshold') || 'high';
-        const github_token = lib_core.getInput('github_token', { required: true });
+        const github_token = process.env.GITHUB_TOKEN || lib_core.getInput('github_token');
+        if (!github_token) {
+            throw new Error('[Guppy] Error: GitHub token not provided. Set either environment variable "GITHUB_TOKEN" or input "github_token"');
+        }
         const upload_sarif = lib_core.getBooleanInput('upload_sarif');
         const sca_enabled = lib_core.getBooleanInput('sca_enabled');
         const sca_scanner = lib_core.getInput('sca_scanner') || 'osv';

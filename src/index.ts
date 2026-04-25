@@ -49,7 +49,10 @@ async function main() {
     const post_comments = core.getBooleanInput('post_comments');
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
     const comment_severity_threshold = core.getInput('comment_severity_threshold') || 'high';
-    const github_token = core.getInput('github_token', { required: true });
+    const github_token = process.env.GITHUB_TOKEN || core.getInput('github_token');
+    if (!github_token) {
+      throw new Error('[Guppy] Error: GitHub token not provided. Set either environment variable "GITHUB_TOKEN" or input "github_token"');
+    }
     const upload_sarif = core.getBooleanInput('upload_sarif');
     const sca_enabled = core.getBooleanInput('sca_enabled');
     const sca_scanner = core.getInput('sca_scanner') || 'osv';

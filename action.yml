@@ -31,8 +31,8 @@ inputs:
     required: false
     default: 'high'
   github_token:
-    description: 'GitHub token for PR interactions'
-    required: true
+    description: 'GitHub token for PR interactions. Prefer setting GITHUB_TOKEN as an environment variable instead.'
+    required: false
   upload_sarif:
     description: 'Upload findings as SARIF to GitHub Advanced Security (requires security-events: write)'
     required: false
