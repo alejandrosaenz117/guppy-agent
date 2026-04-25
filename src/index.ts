@@ -161,18 +161,24 @@ async function main() {
 
     core.warning(`[Guppy] Calculation: ${findings.length} potential vulnerabilities identified.`);
 
+    // Compute comment severity threshold once for both SAST and SCA
+    const commentThreshold = SEVERITY_ORDER[inputs.comment_severity_threshold as keyof typeof SEVERITY_ORDER];
+    const commentableFindings = findings.filter(
+      (f) => SEVERITY_ORDER[f.severity as keyof typeof SEVERITY_ORDER] >= commentThreshold
+    );
+
     // Enrich all findings once — reused for both PR comments and SARIF help text
     const enrichedTexts = new Map<Finding, string>();
-    if ((inputs.post_comments || inputs.upload_sarif) && findings.length > 0) {
+    if ((inputs.post_comments || inputs.upload_sarif) && commentableFindings.length > 0) {
       core.info('[Guppy] Enriching findings with CWE/CAPEC data and generating secure code...');
-      await Promise.all(findings.map(async (f) => {
+      await Promise.all(commentableFindings.map(async (f) => {
         enrichedTexts.set(f, await enrichFinding(f, modelClient));
       }));
     }
 
     // Post inline comments only if SARIF upload is not enabled — when SARIF is
     // active, GitHub's native code scanning annotations already surface findings.
-    if (inputs.post_comments && !inputs.upload_sarif && findings.length > 0) {
+    if (inputs.post_comments && !inputs.upload_sarif && commentableFindings.length > 0) {
       core.info('[Guppy] Posting inline comments to PR...');
 
       // Fetch existing Guppy comments to update in place instead of duplicating
@@ -184,7 +190,7 @@ async function main() {
         (c: any) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('🚨')
       );
 
-      for (const finding of findings) {
+      for (const finding of commentableFindings) {
         const body = enrichedTexts.get(finding)!;
         const existing = guppyComments.find(
           (c: any) => c.path === finding.file && c.line === finding.line
@@ -214,7 +220,7 @@ async function main() {
         }
       }
 
-      core.info(`[Guppy] ${findings.length} comment(s) posted.`);
+      core.info(`[Guppy] ${commentableFindings.length} comment(s) posted.`);
     }
 
     // Upload SARIF to GitHub Advanced Security
@@ -238,9 +244,14 @@ async function main() {
       }
     }
 
+    // Filter SCA findings by comment severity threshold before posting comments
+    const commentableScaFindings = scaFindings.filter(
+      (f) => SEVERITY_ORDER[f.vulnerability.severity as keyof typeof SEVERITY_ORDER] >= commentThreshold
+    );
+
     // Post SCA comments to PR
-    if (inputs.post_comments && scaFindings.length > 0) {
-      core.info(`[Guppy SCA] Posting ${scaFindings.length} comment(s)...`);
+    if (inputs.post_comments && commentableScaFindings.length > 0) {
+      core.info(`[Guppy SCA] Posting ${commentableScaFindings.length} comment(s)...`);
       const existingComments = await octokit.paginate(
         (octokit.rest.pulls as any).listReviewComments,
         { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 }
@@ -249,7 +260,7 @@ async function main() {
         (c: any) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('⚠️')
       );
 
-      for (const finding of scaFindings) {
+      for (const finding of commentableScaFindings) {
         const body = formatScaComment(finding);
         const existing = guppyScaComments.find(
           (c: any) => c.path === finding.file && c.body?.includes(finding.vulnerability.id)
