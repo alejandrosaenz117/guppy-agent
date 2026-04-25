@@ -17,6 +17,7 @@ jobs:
         with:
           api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: 'claude-3-5-sonnet-20241022'
           comment_severity_threshold: 'high'
           fail_on_severity: 'critical'
         continue-on-error: true
@@ -31,6 +32,7 @@ jobs:
         with:
           api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: 'claude-3-5-sonnet-20241022'
           comment_severity_threshold: 'medium'
           fail_on_severity: 'critical'
         continue-on-error: true
@@ -45,6 +47,7 @@ jobs:
         with:
           api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: 'claude-3-5-sonnet-20241022'
           comment_severity_threshold: 'critical'
           fail_on_severity: 'critical'
         continue-on-error: true
