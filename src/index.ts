@@ -15,42 +15,53 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
 
+async function fetchReviewThreads(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<any[]> {
+  const data = await octokit.graphql<any>(`
+    query GetReviewThreads($owner: String!, $repo: String!, $pull: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $pull) {
+          reviewThreads(first: 100) {
+            nodes { id isResolved comments(first: 1) { nodes { databaseId } } }
+          }
+        }
+      }
+    }
+  `, { owner, repo, pull: prNumber }).catch((err: any) => {
+    core.warning(`[Guppy] Failed to fetch review threads: ${err.message}`);
+    return null;
+  });
+  return data?.repository?.pullRequest?.reviewThreads?.nodes ?? [];
+}
+
 async function resolveStaleComment(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
-  prNumber: number,
   comment: any,
-  fixedSha: string
+  fixedSha: string,
+  reviewThreads: any[]
 ): Promise<void> {
   const shortSha = fixedSha.slice(0, 7);
-
   const resolvedBody = `_(Guppy finding resolved — issue no longer detected as of commit \`${shortSha}\`.)_`;
 
-  const [, threadData] = await Promise.all([
-    (octokit.rest.pulls as any).updateReviewComment({
-      owner,
-      repo,
-      comment_id: comment.id,
-      body: resolvedBody,
-    }).catch((err: any) => {
-      core.warning(`[Guppy] Failed to update comment ${comment.id}: ${err.message}`);
-    }),
-    octokit.graphql<any>(`
-      query GetThread($nodeId: ID!) {
-        node(id: $nodeId) {
-          ... on PullRequestReviewComment {
-            pullRequestReviewThread { id isResolved }
-          }
-        }
-      }
-    `, { nodeId: comment.node_id }).catch((err: any) => {
-      core.warning(`[Guppy] Failed to fetch thread for comment ${comment.id}: ${err.message}`);
-      return null;
-    }),
-  ]);
+  const thread = reviewThreads.find(
+    (t: any) => t.comments?.nodes?.[0]?.databaseId === comment.id
+  );
 
-  const thread = threadData?.node?.pullRequestReviewThread;
+  await (octokit.rest.pulls as any).updateReviewComment({
+    owner,
+    repo,
+    comment_id: comment.id,
+    body: resolvedBody,
+  }).catch((err: any) => {
+    core.warning(`[Guppy] Failed to update comment ${comment.id}: ${err.message}`);
+  });
+
   if (thread && !thread.isResolved) {
     if (!/^[A-Za-z0-9_+=/-]{10,}$/.test(thread.id)) {
       core.warning(`[Guppy] Unexpected thread ID format for comment ${comment.id}, skipping resolve.`);
@@ -287,9 +298,10 @@ async function main() {
       const staleGuppyComments = guppyComments.filter(
         (c: any) => !commentableFindings.some((f) => f.file === c.path && f.line === c.line)
       );
-      if (headShaValid) {
+      if (headShaValid && staleGuppyComments.length > 0) {
+        const reviewThreads = await fetchReviewThreads(octokit, repo.owner, repo.repo, prNumber);
         await Promise.all(staleGuppyComments.map((stale) =>
-          resolveStaleComment(octokit, repo.owner, repo.repo, prNumber, stale, headSha)
+          resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha, reviewThreads)
         ));
       }
 
@@ -360,9 +372,10 @@ async function main() {
           (f) => isValidCveId(f.vulnerability.id) && c.body?.includes(f.vulnerability.id)
         )
       );
-      if (headShaValid) {
+      if (headShaValid && staleScaComments.length > 0) {
+        const reviewThreads = await fetchReviewThreads(octokit, repo.owner, repo.repo, prNumber);
         await Promise.all(staleScaComments.map((stale) =>
-          resolveStaleComment(octokit, repo.owner, repo.repo, prNumber, stale, headSha)
+          resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha, reviewThreads)
         ));
       }
 
