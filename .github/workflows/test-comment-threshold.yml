@@ -1,0 +1,50 @@
+name: Test Comment Severity Threshold
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'action.yml'
+
+jobs:
+  test-high-threshold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test with high threshold (default)
+        uses: ./
+        with:
+          api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_severity_threshold: 'high'
+          fail_on_severity: 'critical'
+        continue-on-error: true
+
+  test-medium-threshold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test with medium threshold (verbose)
+        uses: ./
+        with:
+          api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_severity_threshold: 'medium'
+          fail_on_severity: 'critical'
+        continue-on-error: true
+
+  test-critical-threshold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test with critical threshold (minimal)
+        uses: ./
+        with:
+          api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_severity_threshold: 'critical'
+          fail_on_severity: 'critical'
+        continue-on-error: true
