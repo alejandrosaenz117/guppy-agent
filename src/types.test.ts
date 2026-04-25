@@ -218,6 +218,24 @@ describe('ActionInputsSchema', () => {
     assert.equal(result.data?.upload_sarif, true);
   });
 
+  it('defaults comment_severity_threshold to high when omitted', () => {
+    const result = ActionInputsSchema.safeParse(validInputs);
+    assert.ok(result.success);
+    assert.equal(result.data?.comment_severity_threshold, 'high');
+  });
+
+  it('accepts all valid comment_severity_threshold values', () => {
+    for (const threshold of ['critical', 'high', 'medium', 'low', 'none']) {
+      const result = ActionInputsSchema.safeParse({ ...validInputs, comment_severity_threshold: threshold });
+      assert.ok(result.success, `comment_severity_threshold '${threshold}' should be valid`);
+    }
+  });
+
+  it('rejects invalid comment_severity_threshold value', () => {
+    const result = ActionInputsSchema.safeParse({ ...validInputs, comment_severity_threshold: 'urgent' });
+    assert.ok(!result.success);
+  });
+
 });
 
 describe('SEVERITY_ORDER', () => {

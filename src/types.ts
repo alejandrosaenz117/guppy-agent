@@ -72,6 +72,7 @@ export const ActionInputsSchema = z.object({
   skeptic_pass: z.boolean().default(true),
   post_comments: z.boolean().default(true),
   fail_on_severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high'),
+  comment_severity_threshold: z.enum(['critical', 'high', 'medium', 'low', 'none']).default('high'),
   github_token: z.string().describe('GitHub token for Octokit'),
   upload_sarif: z.boolean().default(false),
   sca_enabled: z.boolean().default(true).describe('Enable SCA (Software Composition Analysis) scanning'),
