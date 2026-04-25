@@ -11,6 +11,7 @@ import { OsvAdapter } from './sca/adapters/osv.js';
 import { extractPackagesFromDiff } from './sca/lockfile.js';
 import type { ScaFinding } from './types.js';
 import { gzipSync } from 'zlib';
+import { extractTouchedLines, isStaleComment } from './diff.js';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
@@ -44,35 +45,6 @@ function extractTouchedFiles(diff: string): string[] {
   return [...new Set(files)];
 }
 
-// Returns a map of file path -> set of line numbers that were added or modified in the diff
-function extractTouchedLines(diff: string): Map<string, Set<number>> {
-  const result = new Map<string, Set<number>>();
-  let currentFile = '';
-  let newLineNum = 0;
-
-  for (const line of diff.split('\n')) {
-    const fileMatch = line.match(/^diff --git a\/.+ b\/(.+)$/);
-    if (fileMatch) {
-      currentFile = fileMatch[1];
-      if (!result.has(currentFile)) result.set(currentFile, new Set());
-      continue;
-    }
-    const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if (hunkMatch) {
-      newLineNum = parseInt(hunkMatch[1], 10);
-      continue;
-    }
-    if (!currentFile) continue;
-    if (line.startsWith('+') && !line.startsWith('+++')) {
-      result.get(currentFile)!.add(newLineNum);
-      newLineNum++;
-    } else if (!line.startsWith('-')) {
-      newLineNum++;
-    }
-  }
-
-  return result;
-}
 
 async function main() {
   try {
@@ -285,10 +257,9 @@ async function main() {
 
       // Only resolve a stale comment if the flagged line was actually touched in this
       // diff — if the line wasn't changed, the vulnerability may still exist in the file.
-      const staleGuppyComments = guppyComments.filter((c: any) => {
-        if (commentableFindings.some((f) => f.file === c.path && f.line === c.line)) return false;
-        return touchedLines.get(c.path)?.has(c.line) ?? false;
-      });
+      const staleGuppyComments = guppyComments.filter((c: any) =>
+        isStaleComment(c, commentableFindings.map((f) => ({ file: f.file, line: f.line })), touchedLines)
+      );
       if (headShaValid && staleGuppyComments.length > 0) {
         await Promise.all(staleGuppyComments.map((stale) =>
           resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha)

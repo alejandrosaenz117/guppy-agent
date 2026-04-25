@@ -94796,6 +94796,53 @@ class ScaAuditor {
 
 
 //# sourceMappingURL=index.js.map
+;// CONCATENATED MODULE: ./out/diff.js
+function extractTouchedLines(diff) {
+    const result = new Map();
+    let currentFile = '';
+    let newLineNum = 0;
+    for (const line of diff.split('\n')) {
+        const fileMatch = line.match(/^diff --git a\/.+ b\/(.+)$/);
+        if (fileMatch) {
+            currentFile = fileMatch[1];
+            if (!result.has(currentFile))
+                result.set(currentFile, new Set());
+            continue;
+        }
+        const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (hunkMatch) {
+            newLineNum = parseInt(hunkMatch[1], 10);
+            continue;
+        }
+        if (!currentFile)
+            continue;
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+            result.get(currentFile).add(newLineNum);
+            newLineNum++;
+        }
+        else if (!line.startsWith('-')) {
+            newLineNum++;
+        }
+    }
+    return result;
+}
+// Determines whether a PR review comment should be resolved as stale.
+// A comment is stale when:
+//   1. No active finding targets the same file+line, AND
+//   2. The specific line was actually touched in this diff
+//      (so we don't resolve comments on untouched lines where the issue may still exist).
+//
+// GitHub sets comment.line = null for comments on outdated diff positions; use original_line
+// as the fallback so outdated comments are still evaluated correctly.
+function isStaleComment(comment, activeFindings, touchedLines) {
+    const commentLine = comment.line ?? comment.original_line;
+    if (commentLine === null)
+        return false;
+    if (activeFindings.some((f) => f.file === comment.path && f.line === commentLine))
+        return false;
+    return touchedLines.get(comment.path)?.has(commentLine) ?? false;
+}
+//# sourceMappingURL=diff.js.map
 // EXTERNAL MODULE: ./node_modules/@ai-sdk/provider/dist/index.mjs
 var provider_dist = __nccwpck_require__(5163);
 // EXTERNAL MODULE: ./node_modules/zod/v4/classic/schemas.js + 4 modules
@@ -109860,6 +109907,7 @@ var google = createGoogleGenerativeAI();
 
 
 
+
 async function resolveStaleComment(octokit, owner, repo, comment, fixedSha) {
     const shortSha = fixedSha.slice(0, 7);
     const resolvedBody = `_(Guppy finding resolved — issue no longer detected as of commit \`${shortSha}\`.)_`;
@@ -109880,36 +109928,6 @@ function extractTouchedFiles(diff) {
             files.push(match[1]);
     }
     return [...new Set(files)];
-}
-// Returns a map of file path -> set of line numbers that were added or modified in the diff
-function extractTouchedLines(diff) {
-    const result = new Map();
-    let currentFile = '';
-    let newLineNum = 0;
-    for (const line of diff.split('\n')) {
-        const fileMatch = line.match(/^diff --git a\/.+ b\/(.+)$/);
-        if (fileMatch) {
-            currentFile = fileMatch[1];
-            if (!result.has(currentFile))
-                result.set(currentFile, new Set());
-            continue;
-        }
-        const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-        if (hunkMatch) {
-            newLineNum = parseInt(hunkMatch[1], 10);
-            continue;
-        }
-        if (!currentFile)
-            continue;
-        if (line.startsWith('+') && !line.startsWith('+++')) {
-            result.get(currentFile).add(newLineNum);
-            newLineNum++;
-        }
-        else if (!line.startsWith('-')) {
-            newLineNum++;
-        }
-    }
-    return result;
 }
 async function main() {
     try {
@@ -110084,11 +110102,7 @@ async function main() {
             }
             // Only resolve a stale comment if the flagged line was actually touched in this
             // diff — if the line wasn't changed, the vulnerability may still exist in the file.
-            const staleGuppyComments = guppyComments.filter((c) => {
-                if (commentableFindings.some((f) => f.file === c.path && f.line === c.line))
-                    return false;
-                return touchedLines.get(c.path)?.has(c.line) ?? false;
-            });
+            const staleGuppyComments = guppyComments.filter((c) => isStaleComment(c, commentableFindings.map((f) => ({ file: f.file, line: f.line })), touchedLines));
             if (headShaValid && staleGuppyComments.length > 0) {
                 await Promise.all(staleGuppyComments.map((stale) => resolveStaleComment(octokit, repo.owner, repo.repo, stale, headSha)));
             }
