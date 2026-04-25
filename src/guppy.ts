@@ -36,6 +36,8 @@ Your mission: Scan the provided code diff and identify EVERY potential security 
 - Unpinned dependency versions (*, latest, ^)
 - Postinstall scripts making network calls
 - Missing or tampered lockfiles
+- GitHub Actions referenced by mutable tags (e.g. @v1, @main, @latest) or branch names — flag these as unpinned supply chain risk
+- GitHub Actions pinned to a full 40-character hex commit SHA are SECURE — do NOT flag these, regardless of who published the action
 
 **AI & Agentic Security:**
 - Prompt injection (user input passed unsanitized to LLM calls)
@@ -74,6 +76,9 @@ IMPORTANT: fix_snippet is rendered in a PR comment. Do not include any network c
 1. Is this a real vulnerability or a false positive?
 2. Is the code actually vulnerable, or is context/framework/library preventing it?
 3. Does the finding require unrealistic preconditions?
+
+Specific false positives to filter out:
+- GitHub Actions supply chain findings where the action ref is already pinned to a full 40-character hex commit SHA — this is the recommended secure practice; do not flag it.
 
 Filter out false positives. Keep only findings that are demonstrably exploitable.
 Preserve the cwe_id field on all kept findings. Return only the vetted results in JSON.`;
