@@ -109855,6 +109855,48 @@ var google = createGoogleGenerativeAI();
 
 
 
+async function resolveStaleComment(octokit, owner, repo, prNumber, comment, fixedSha) {
+    const shortSha = fixedSha.slice(0, 7);
+    const resolvedBody = `_(Guppy finding resolved — issue no longer detected as of commit \`${shortSha}\`.)_`;
+    const [, threadData] = await Promise.all([
+        octokit.rest.pulls.updateReviewComment({
+            owner,
+            repo,
+            comment_id: comment.id,
+            body: resolvedBody,
+        }).catch((err) => {
+            lib_core.warning(`[Guppy] Failed to update comment ${comment.id}: ${err.message}`);
+        }),
+        octokit.graphql(`
+      query GetThread($nodeId: ID!) {
+        node(id: $nodeId) {
+          ... on PullRequestReviewComment {
+            pullRequestReviewThread { id isResolved }
+          }
+        }
+      }
+    `, { nodeId: comment.node_id }).catch((err) => {
+            lib_core.warning(`[Guppy] Failed to fetch thread for comment ${comment.id}: ${err.message}`);
+            return null;
+        }),
+    ]);
+    const thread = threadData?.node?.pullRequestReviewThread;
+    if (thread && !thread.isResolved) {
+        if (!/^[A-Za-z0-9_+=/-]{10,}$/.test(thread.id)) {
+            lib_core.warning(`[Guppy] Unexpected thread ID format for comment ${comment.id}, skipping resolve.`);
+            return;
+        }
+        await octokit.graphql(`
+      mutation ResolveThread($threadId: ID!) {
+        resolveReviewThread(input: { threadId: $threadId }) {
+          thread { id isResolved }
+        }
+      }
+    `, { threadId: thread.id }).catch((err) => {
+            lib_core.warning(`[Guppy] Failed to resolve thread for comment ${comment.id}: ${err.message}`);
+        });
+    }
+}
 function extractTouchedFiles(diff) {
     const files = [];
     for (const line of diff.split('\n')) {
@@ -109996,11 +110038,15 @@ async function main() {
                 enrichedTexts.set(f, await enrichFinding(f, modelClient));
             }));
         }
+        const headSha = context.payload.pull_request.head.sha;
+        const headShaValid = /^[0-9a-f]{40}$/i.test(headSha);
+        if (!headShaValid) {
+            lib_core.warning('[Guppy] Unexpected head.sha format — stale comment resolution disabled.');
+        }
         // Post inline comments only if SARIF upload is not enabled — when SARIF is
         // active, GitHub's native code scanning annotations already surface findings.
-        if (inputs.post_comments && !inputs.upload_sarif && commentableFindings.length > 0) {
-            lib_core.info('[Guppy] Posting inline comments to PR...');
-            // Fetch existing Guppy comments to update in place instead of duplicating
+        if (inputs.post_comments && !inputs.upload_sarif) {
+            lib_core.info('[Guppy] Syncing inline comments to PR...');
             const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
             const guppyComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('🚨'));
             for (const finding of commentableFindings) {
@@ -110022,7 +110068,7 @@ async function main() {
                         repo: repo.repo,
                         pull_number: prNumber,
                         body,
-                        commit_id: context.payload.pull_request.head.sha,
+                        commit_id: headSha,
                         path: finding.file,
                         line: finding.line,
                     }).catch((err) => {
@@ -110030,7 +110076,11 @@ async function main() {
                     });
                 }
             }
-            lib_core.info(`[Guppy] ${commentableFindings.length} comment(s) posted.`);
+            const staleGuppyComments = guppyComments.filter((c) => !commentableFindings.some((f) => f.file === c.path && f.line === c.line));
+            if (headShaValid) {
+                await Promise.all(staleGuppyComments.map((stale) => resolveStaleComment(octokit, repo.owner, repo.repo, prNumber, stale, headSha)));
+            }
+            lib_core.info(`[Guppy] ${commentableFindings.length} comment(s) active, ${staleGuppyComments.length} stale comment(s) resolved.`);
         }
         // Upload SARIF to GitHub Advanced Security
         if (inputs.upload_sarif && findings.length > 0) {
@@ -110042,7 +110092,7 @@ async function main() {
                 await octokit.request('POST /repos/{owner}/{repo}/code-scanning/sarifs', {
                     owner: repo.owner,
                     repo: repo.repo,
-                    commit_sha: context.payload.pull_request.head.sha,
+                    commit_sha: headSha,
                     ref: prRef,
                     sarif: encoded,
                     tool_name: 'guppy-agent',
@@ -110056,10 +110106,10 @@ async function main() {
         // Filter SCA findings by comment severity threshold before posting comments
         const commentableScaFindings = scaFindings.filter((f) => SEVERITY_ORDER[f.vulnerability.severity] >= commentThreshold);
         // Post SCA comments to PR
-        if (inputs.post_comments && commentableScaFindings.length > 0) {
-            lib_core.info(`[Guppy SCA] Posting ${commentableScaFindings.length} comment(s)...`);
-            const existingComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
-            const guppyScaComments = existingComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('⚠️'));
+        if (inputs.post_comments) {
+            lib_core.info(`[Guppy SCA] Syncing ${commentableScaFindings.length} comment(s)...`);
+            const existingScaComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, { owner: repo.owner, repo: repo.repo, pull_number: prNumber, per_page: 100 });
+            const guppyScaComments = existingScaComments.filter((c) => c.user?.login === 'github-actions[bot]' && c.body?.startsWith('⚠️'));
             for (const finding of commentableScaFindings) {
                 const body = formatScaComment(finding);
                 const existing = guppyScaComments.find((c) => c.path === finding.file && c.body?.includes(finding.vulnerability.id));
@@ -110073,13 +110123,18 @@ async function main() {
                 else {
                     await octokit.rest.pulls.createReviewComment({
                         owner: repo.owner, repo: repo.repo, pull_number: prNumber, body,
-                        commit_id: context.payload.pull_request.head.sha,
+                        commit_id: headSha,
                         path: finding.file, line: 1,
                     }).catch((err) => {
                         lib_core.warning(`[Guppy SCA] Failed to post comment for ${finding.vulnerability.id}: ${err.message}`);
                     });
                 }
             }
+            const staleScaComments = guppyScaComments.filter((c) => !commentableScaFindings.some((f) => isValidCveId(f.vulnerability.id) && c.body?.includes(f.vulnerability.id)));
+            if (headShaValid) {
+                await Promise.all(staleScaComments.map((stale) => resolveStaleComment(octokit, repo.owner, repo.repo, prNumber, stale, headSha)));
+            }
+            lib_core.info(`[Guppy SCA] ${commentableScaFindings.length} comment(s) active, ${staleScaComments.length} stale comment(s) resolved.`);
         }
         // Check severity threshold
         const severityThreshold = SEVERITY_ORDER[inputs.fail_on_severity];

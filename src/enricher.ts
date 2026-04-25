@@ -29,7 +29,7 @@ function validateAndSanitizeVersion(v: string): string | null {
 /**
  * Validates CVE/GHSA ID format
  */
-function isValidCveId(id: string): boolean {
+export function isValidCveId(id: string): boolean {
   return /^(CVE|GHSA)-[\w-]+$/.test(id);
 }
 

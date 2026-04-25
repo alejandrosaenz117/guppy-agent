@@ -1,6 +1,10 @@
 import { CWEEntry } from 'fetch-cwe-list';
 import { Enrichable, ScaFinding, Finding } from './types.js';
 import type { LanguageModel } from 'ai';
+/**
+ * Validates CVE/GHSA ID format
+ */
+export declare function isValidCveId(id: string): boolean;
 export declare function getCweList(): Promise<CWEEntry[]>;
 declare function setCweListCache(list: CWEEntry[] | null): void;
 export { setCweListCache as _setCweListCache };
