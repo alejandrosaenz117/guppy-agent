@@ -1,6 +1,6 @@
 {
   "name": "guppy-agent",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Admiral Ackbar's GitHub Action for PR security scanning",
   "type": "module",
   "main": "dist/index.js",
