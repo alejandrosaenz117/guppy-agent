@@ -109866,7 +109866,7 @@ async function fetchReviewThreads(octokit, owner, repo, prNumber) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $pull) {
           reviewThreads(first: 100) {
-            nodes { id isResolved comments(first: 1) { nodes { databaseId } } }
+            nodes { id isResolved comments(first: 50) { nodes { databaseId } } }
           }
         }
       }
@@ -109880,7 +109880,7 @@ async function fetchReviewThreads(octokit, owner, repo, prNumber) {
 async function resolveStaleComment(octokit, owner, repo, comment, fixedSha, reviewThreads) {
     const shortSha = fixedSha.slice(0, 7);
     const resolvedBody = `_(Guppy finding resolved — issue no longer detected as of commit \`${shortSha}\`.)_`;
-    const thread = reviewThreads.find((t) => t.comments?.nodes?.[0]?.databaseId === comment.id);
+    const thread = reviewThreads.find((t) => t.comments?.nodes?.some((c) => c.databaseId === comment.id));
     await octokit.rest.pulls.updateReviewComment({
         owner,
         repo,

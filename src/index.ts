@@ -26,7 +26,7 @@ async function fetchReviewThreads(
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $pull) {
           reviewThreads(first: 100) {
-            nodes { id isResolved comments(first: 1) { nodes { databaseId } } }
+            nodes { id isResolved comments(first: 50) { nodes { databaseId } } }
           }
         }
       }
@@ -50,7 +50,7 @@ async function resolveStaleComment(
   const resolvedBody = `_(Guppy finding resolved — issue no longer detected as of commit \`${shortSha}\`.)_`;
 
   const thread = reviewThreads.find(
-    (t: any) => t.comments?.nodes?.[0]?.databaseId === comment.id
+    (t: any) => t.comments?.nodes?.some((c: any) => c.databaseId === comment.id)
   );
 
   await (octokit.rest.pulls as any).updateReviewComment({
