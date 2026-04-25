@@ -26,6 +26,10 @@ inputs:
     description: 'Fail the build if findings meet this severity (critical|high|medium|low|none)'
     required: false
     default: 'high'
+  comment_severity_threshold:
+    description: 'Minimum severity for posting PR comments (critical|high|medium|low|none)'
+    required: false
+    default: 'high'
   github_token:
     description: 'GitHub token for PR interactions'
     required: true
