@@ -28,6 +28,15 @@ async function main() {
   try {
     core.info('[Guppy] Acknowledged. Initiating security scan. As you wish, Bob.');
 
+    await core.summary
+      .addHeading('Guppy Security Scanner', 3)
+      .addTable([
+        [{ data: 'Input', header: true }, { data: 'Value', header: true }],
+        ['comment_severity_threshold', core.getInput('comment_severity_threshold') || 'high'],
+        ['fail_on_severity', core.getInput('fail_on_severity') || 'high'],
+      ])
+      .write();
+
     // Parse inputs
     const api_key = core.getInput('api_key', { required: true });
     core.setSecret(api_key);
@@ -36,6 +45,7 @@ async function main() {
     const skeptic_pass = core.getBooleanInput('skeptic_pass');
     const post_comments = core.getBooleanInput('post_comments');
     const fail_on_severity = core.getInput('fail_on_severity') || 'high';
+    const comment_severity_threshold = core.getInput('comment_severity_threshold') || 'high';
     const github_token = core.getInput('github_token', { required: true });
     const upload_sarif = core.getBooleanInput('upload_sarif');
     const sca_enabled = core.getBooleanInput('sca_enabled');
@@ -52,6 +62,7 @@ async function main() {
       skeptic_pass,
       post_comments,
       fail_on_severity,
+      comment_severity_threshold,
       github_token,
       upload_sarif,
       sca_enabled,
